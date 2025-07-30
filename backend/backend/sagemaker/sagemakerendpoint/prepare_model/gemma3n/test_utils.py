@@ -23,6 +23,7 @@ def create_model_archive(source_dir: str | Path, output_file_path: str | Path):
     # Convert to absolute paths
     source_dir = Path(source_dir).absolute()
     output_file_path = Path(output_file_path).absolute()
+    output_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not source_dir.is_dir():
         raise ValueError(f"Source directory {source_dir} does not exist or is not a directory")

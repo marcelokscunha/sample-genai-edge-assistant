@@ -1,28 +1,39 @@
+
+import os
 import pathlib
 from pprint import pprint
 
-from code.inference import model_fn, predict_fn
+import boto3
+import sagemaker
+from sagemaker.predictor import Predictor
+
 from test_utils import get_base64_from_image
 
-# Requirements:
-# - You have the local artifacts for the model (have ran 'python prepare_model_files.py')
-# - Make sure you've installed the dependencies in requirements.txt with 'pip install -r core/requirements.txt'
 
 if __name__ == "__main__":
-    HERE = pathlib.Path(__file__).parent.absolute()
-    ARTIFACTS_DIR = HERE / "ARTIFACTS" / "model"
+    HERE = pathlib.Path(__file__).parent
 
-    if not ARTIFACTS_DIR.exists():
-        raise RuntimeError("ARTIFACTS directory does not exist. Please run the prepare_model_files.py script first.")
-
-    print(f"Predicting with test data...")
-    pipeline = model_fn(str(ARTIFACTS_DIR))
-    payload = {
+    default_ep_name = "gemma3n-test-endpoint"
+    endpoint_name = input(f"Name of SageMaker endpoint to invoke: (press enter to default '{default_ep_name}'): ") 
+    if endpoint_name=="":
+        endpoint_name = default_ep_name
+    print(f"Invoking endpoint '{endpoint_name}'")
+    predictor = Predictor(endpoint_name)
+    
+    # Example inference
+    sample_input = {
         "image": get_base64_from_image(HERE.parent / "data" / "samples" / "sidewalk.jpg"),
         "nav_goal": "sidewalk"
     }
-
-    pprint(predict_fn(payload, pipeline))
+    
+    # Make prediction
+    predictor.serializer = sagemaker.serializers.JSONSerializer()
+    predictor.deserializer = sagemaker.deserializers.JSONDeserializer()
+    result = predictor.predict(sample_input)
+    print(f"Prediction result:")
+    pprint(result)
+    # OUTPUT:
+    # Prediction result:
     # {'response': 'The image shows a street scene with a sidewalk running along the '
     #             "right side of the frame. On the left side, there's a set of "
     #             'outdoor stairs leading up to a building with a black iron '
@@ -61,3 +72,9 @@ if __name__ == "__main__":
     #             '\n'
     #             '\n'
     #             '\n'}
+
+    delete_ep = input("Should we delete the endpoint? [y/N]: ") == "y"
+    if delete_ep:
+        print("Cleaning up (deleting endpoint)")
+        predictor.delete_endpoint()
+        print("Deleted successfully!")

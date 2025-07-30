@@ -30,9 +30,6 @@ if __name__ == "__main__":
     pipeline.processor.save_pretrained(dst_content_dir)
     pipeline.model.save_pretrained(dst_content_dir)
 
-    print(f"Copying {code_dir.name} into {dst_content_code_dir}...")
-    shutil.copytree(code_dir, dst_content_code_dir, dirs_exist_ok=True)
-
     print(f"Creating final '{dst_content_dir}/model.tar.gz' artifact with model and inference code...")
     create_model_archive(dst_content_dir, output_file_path = dst_dir/"package"/"model.tar.gz")
     print(f"\nArchive created successfully!")
@@ -40,3 +37,5 @@ if __name__ == "__main__":
     # Verify the size of the created archive
     archive_size = pathlib.Path(dst_dir/"package"/"model.tar.gz").stat().st_size / (1024 * 1024)  # Size in MB
     print(f"Archive size: {archive_size:.2f} MB")
+
+    print("OK, now you can run some test inferences locally if wanted with 'python test_model.py'")
