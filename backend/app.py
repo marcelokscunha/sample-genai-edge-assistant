@@ -4,7 +4,7 @@ import cdk_nag
 from aws_cdk import App, Aspects, Environment
 
 import shared.shared_variables as shared_variables
-from backend.main import MyStack
+from resources.main import MyStack
 
 # for development, use account/region from cdk cli
 dev_env = Environment(

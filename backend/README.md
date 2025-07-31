@@ -9,7 +9,7 @@
 Install the [requirements](./requirements.txt) in a virtual environment:
 
 ```
-cd backend
+cd resources
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -127,7 +127,7 @@ First, you need to delete the SageMaker pipelines and models which are not part 
 Start by running: 
 
 ```
-PYTHONPATH=./shared/ python ./backend/sagemakerpipeline/pipelines_resources_deletion.py
+PYTHONPATH=./shared/ python ./resources/sagemaker/sagemakerpipeline/pipelines_resources_deletion.py
 ```
 
 Once this is done and the output does not raise any exception, you can delete the CDK stack:

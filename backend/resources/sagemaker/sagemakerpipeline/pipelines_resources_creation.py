@@ -116,7 +116,7 @@ depth_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
     script_name="depth_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -140,7 +140,7 @@ image_captioning_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
     script_name="ic_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -166,7 +166,7 @@ object_detection_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
     script_name="od_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -192,7 +192,7 @@ tts_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
     script_name="tts_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -214,7 +214,7 @@ vocoder_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_VOCODER_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
     script_name="vocoder_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
