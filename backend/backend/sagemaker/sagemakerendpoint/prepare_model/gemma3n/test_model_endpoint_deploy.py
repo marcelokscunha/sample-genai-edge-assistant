@@ -8,6 +8,10 @@ from sagemaker.pytorch.model import PyTorchModel
 
 from test_utils import get_base64_from_image
 
+# Requirements:
+# - You have the local artifacts for the model (have ran 'python prepare_model_files.py')
+# - (Optional) Have tested locally with 'python test_model.py'
+
 def deploy_model(
     role: str,
     artifacts_file: str,
@@ -43,12 +47,16 @@ def deploy_model(
         
     else:
         print("Configured cloud deployment...")
-        instance_type = "ml.g6.xlarge"
+        instance_type = "ml.m5.xlarge"
+
+        # instance_type = "ml.m6g.xlarge"
+        # pytorch_version: str ="2.4.0"  # (current latest for graviton)
+        # py_version: str ="py311",      # (current latest for graviton)
 
         # Initialize SageMaker session
         sagemaker_session = sagemaker.Session()
         print("Uploading model artifact...")
-        model_data = sagemaker_session.upload_data(path=artifacts_file)
+        model_data = sagemaker_session.upload_data(path=artifacts_file, bucket=sagemaker_session.default_bucket(), key_prefix=f"endpoints/{endpoint_name}")
         print(f"Uploaded artifact to: {model_data}")
 
     print("Preparing model...")
@@ -69,6 +77,7 @@ def deploy_model(
             instance_type=instance_type,
             wait=True
         )
+        print(f"Model deployed successfully in endpoint {endpoint_name}!")
     
         return predictor
     

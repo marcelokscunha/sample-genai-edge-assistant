@@ -9,6 +9,8 @@ from sagemaker.predictor import Predictor
 
 from test_utils import get_base64_from_image
 
+# Requirements:
+# - You have a SageMaker endpoint running (already ran 'python test_model_endpoint_deploy.py')
 
 if __name__ == "__main__":
     HERE = pathlib.Path(__file__).parent
