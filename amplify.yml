@@ -11,13 +11,15 @@ backend:
         - pip install --upgrade pip
         - pip install -r requirements.txt
         - pip install aws-cdk-lib
+        - nvm install 22
         - npm install -g aws-cdk
     build:
       commands:
         - PYTHONPATH=./shared/ cdk bootstrap --context amplify_app_id=$AWS_APP_ID
-        - PYTHONPATH=./shared/ cdk deploy --context amplify_app_id=$AWS_APP_ID --require-approval never
-        - PYTHONPATH=./shared/ python ./resources/sagemaker/sagemakerpipeline/pipelines_resources_creation.py
-        # TODO: auto train, approve models to publish
+        - PYTHONPATH=./shared/ cdk deploy --context amplify_app_id=$AWS_APP_ID
+          --require-approval never
+        - PYTHONPATH=./shared/ python
+          ./resources/sagemaker/sagemakerpipeline/pipelines_resources_creation.py
   cache:
     paths:
       - backend/venv/**/*
@@ -37,7 +39,7 @@ frontend:
   artifacts:
     baseDirectory: visual_assistant_js/out
     files:
-      - "**/*"
+      - '**/*'
   cache:
     paths:
       - visual_assistant_js/.next/cache/**/*

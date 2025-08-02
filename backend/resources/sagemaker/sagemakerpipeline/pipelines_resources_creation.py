@@ -130,12 +130,12 @@ print(
 )
 
 if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODEL", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
         pipeline_execution = depth_pipeline.start({"DefaultApprovalStatus": "Approved"})
     else:
         pipeline_execution = depth_pipeline.start()
     print(
-        f"{GREEN}Depth pipeline triggered (execution: {pipeline_execution.arn}{RESET}"
+        f"{GREEN}Depth pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
     )
 print("\n\n")
 
@@ -164,12 +164,12 @@ print(
 )
 
 if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODEL", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
         pipeline_execution = image_captioning_pipeline.start({"DefaultApprovalStatus": "Approved"})
     else:
         pipeline_execution = image_captioning_pipeline.start()
     print(
-        f"{GREEN}Image captioning pipeline triggered (execution: {pipeline_execution.arn}{RESET}"
+        f"{GREEN}Image captioning pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
     )
 print("\n\n")
 
@@ -199,12 +199,12 @@ print(
 )
 
 if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODEL", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
         pipeline_execution = object_detection_pipeline.start({"DefaultApprovalStatus": "Approved"})
     else:
         pipeline_execution = object_detection_pipeline.start()
     print(
-        f"{GREEN}Object detection pipeline triggered (execution: {pipeline_execution.arn}{RESET}"
+        f"{GREEN}Object detection pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
     )
 print("\n\n")
 
@@ -230,12 +230,12 @@ tts_pipeline_arn = pipeline_response["PipelineArn"]
 print(f"{GREEN}TTS pipeline created or updated with ARN: {tts_pipeline_arn}{RESET}")
 
 if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODEL", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
         pipeline_execution = tts_pipeline.start({"DefaultApprovalStatus": "Approved"})
     else:
         pipeline_execution = tts_pipeline.start()
     print(
-        f"{GREEN}TTS pipeline triggered (execution: {pipeline_execution.arn}{RESET}"
+        f"{GREEN}TTS pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
     )
 print("\n\n")
 
@@ -264,11 +264,11 @@ print(
 
 
 if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODEL", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
         pipeline_execution = vocoder_pipeline.start({"DefaultApprovalStatus": "Approved"})
     else:
         pipeline_execution = vocoder_pipeline.start()
     print(
-        f"{GREEN}Vocoder pipeline triggered (execution: {pipeline_execution.arn}{RESET}"
+        f"{GREEN}Vocoder pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
     )
 print("\n\n")
