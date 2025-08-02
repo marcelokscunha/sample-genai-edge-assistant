@@ -29,6 +29,7 @@ class GenericDownloadAndPackPipeline:
         script_path,
         script_name,
         sagemaker_session,
+        default_approval_status="PendingManualApproval",
     ):
 
         export_model_output_s3_uri = ParameterString(
@@ -37,6 +38,9 @@ class GenericDownloadAndPackPipeline:
         )
         package_group_name = ParameterString(
             name="PackageGroupName", default_value=package_group_name_p
+        )
+        approval_status = ParameterString(
+            name="DefaultApprovalStatus", default_value=default_approval_status
         )
 
         instance_type = ParameterString(
@@ -112,7 +116,7 @@ class GenericDownloadAndPackPipeline:
             inference_instances=[instance_type],
             transform_instances=[instance_type],
             model_package_group_name=package_group_name,
-            approval_status="PendingManualApproval",
+            approval_status=approval_status,
             depends_on=[processing_step],
         )
 
@@ -123,6 +127,7 @@ class GenericDownloadAndPackPipeline:
                 export_model_output_s3_uri,
                 instance_type,
                 package_group_name,
+                approval_status,
             ],
             steps=[processing_step, register_model_step],
             sagemaker_session=sagemaker_session,
