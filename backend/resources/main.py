@@ -29,10 +29,10 @@ from aws_cdk import custom_resources as cr
 from cdk_nag import NagSuppressions
 from constructs import Construct
 
-import backend.apigateway.apigateway_construct as apigateway_construct
-import backend.cognito.cognito_construct as cognito_construct
-import backend.sagemaker.sagemakerdomain as sagemakerdomain
-from backend.sagemaker.sagemakerendpoint.paligemma_endpoint_construct import \
+import resources.apigateway.apigateway_construct as apigateway_construct
+import resources.cognito.cognito_construct as cognito_construct
+import resources.sagemaker.sagemakerdomain as sagemakerdomain
+from resources.sagemaker.sagemakerendpoint.paligemma_endpoint_construct import \
     PaLiGemmaEndpointConstruct
 
 
@@ -753,7 +753,6 @@ class MyStack(Stack):
                 "NEXT_PUBLIC_DEBUG_DEPTH": "true",
                 "NEXT_PUBLIC_DEBUG_DETECTION": "true",
                 "NEXT_PUBLIC_DEBUG_IMAGE_CAPTIONING": "true",
-                "AMPLIFY_MONOREPO_APP_ROOT": "visual_assistant_js",
             }
 
             # Update the existing Amplify App

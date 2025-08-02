@@ -1,12 +1,14 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
+import os
 
 import boto3
+from sagemaker import Session
+from sagemaker.workflow.pipeline_context import PipelineSession
+
 import shared_variables as shared_variables
 from pipelines.generic_download_pack_pipeline_definition import \
     GenericDownloadAndPackPipeline
-from sagemaker import Session
-from sagemaker.workflow.pipeline_context import PipelineSession
 
 # ANSI escape code for green text
 GREEN = "\033[92m"
@@ -116,17 +118,25 @@ depth_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
     script_name="depth_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
 
 pipeline_response = depth_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
 depth_train_pipeline_arn = pipeline_response["PipelineArn"]
-
 print(
     f"{GREEN}Depth pipeline created or updated with ARN: {depth_train_pipeline_arn}{RESET}"
 )
+
+if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+        pipeline_execution = depth_pipeline.start({"DefaultApprovalStatus": "Approved"})
+    else:
+        pipeline_execution = depth_pipeline.start()
+    print(
+        f"{GREEN}Depth pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+    )
 print("\n\n")
 
 
@@ -140,7 +150,7 @@ image_captioning_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
     script_name="ic_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -149,10 +159,18 @@ pipeline_response = image_captioning_pipeline.upsert(
     role_arn=EXECUTION_ROLE, tags=[domain_tag]
 )
 image_captioning_pipeline_arn = pipeline_response["PipelineArn"]
-
 print(
     f"{GREEN}Image captioning pipeline created or updated with ARN: {image_captioning_pipeline_arn}{RESET}"
 )
+
+if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+        pipeline_execution = image_captioning_pipeline.start({"DefaultApprovalStatus": "Approved"})
+    else:
+        pipeline_execution = image_captioning_pipeline.start()
+    print(
+        f"{GREEN}Image captioning pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+    )
 print("\n\n")
 
 
@@ -166,7 +184,7 @@ object_detection_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
     script_name="od_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -179,6 +197,15 @@ object_detection_pipeline_arn = pipeline_response["PipelineArn"]
 print(
     f"{GREEN}Object detection pipeline created or updated with ARN: {object_detection_pipeline_arn}{RESET}"
 )
+
+if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+        pipeline_execution = object_detection_pipeline.start({"DefaultApprovalStatus": "Approved"})
+    else:
+        pipeline_execution = object_detection_pipeline.start()
+    print(
+        f"{GREEN}Object detection pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+    )
 print("\n\n")
 
 
@@ -192,7 +219,7 @@ tts_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
     script_name="tts_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -201,6 +228,15 @@ pipeline_response = tts_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_ta
 tts_pipeline_arn = pipeline_response["PipelineArn"]
 
 print(f"{GREEN}TTS pipeline created or updated with ARN: {tts_pipeline_arn}{RESET}")
+
+if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+        pipeline_execution = tts_pipeline.start({"DefaultApprovalStatus": "Approved"})
+    else:
+        pipeline_execution = tts_pipeline.start()
+    print(
+        f"{GREEN}TTS pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+    )
 print("\n\n")
 
 
@@ -214,7 +250,7 @@ vocoder_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_VOCODER_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./backend/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
     script_name="vocoder_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -225,4 +261,14 @@ vocoder_pipeline_arn = pipeline_response["PipelineArn"]
 print(
     f"{GREEN}Vocoder pipeline created or updated with ARN: {vocoder_pipeline_arn}{RESET}"
 )
+
+
+if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+        pipeline_execution = vocoder_pipeline.start({"DefaultApprovalStatus": "Approved"})
+    else:
+        pipeline_execution = vocoder_pipeline.start()
+    print(
+        f"{GREEN}Vocoder pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+    )
 print("\n\n")
