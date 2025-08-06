@@ -14,8 +14,8 @@ To deploy the Webapp to Amplify, you can go into the Amplify console on you AWS 
 
 You can limit AWS integration to solely access the frontend repository. Just follow the instructions and select the correct Github branch to deploy the application. Deploy the application as a monorepo app, with the root directory set to the current directory `visual_assistant_js`.
 
-> As of Feb 2025, the Amplify environment lacks **libvips**, crucial for the working of @huggingface/transformers (through dependancy **sharp**). Because of licensing issue, we removed all dependencies licensed under LGPL-3.0
-which turns out to be some optional dependancies of **sharp** who can remediate the issue.  
+> As of Feb 2025, the Amplify environment lacks **libvips**, crucial for the working of @huggingface/transformers (through dependency **sharp**). Because of licensing issue, we removed all dependencies licensed under LGPL-3.0
+which turns out to be some optional dependencies of **sharp** who can remediate the issue.  
 However, **libvips** is licensed under LGPL-2.1, so we can compile it ourselves. Under <u>libvips_x64</u> folder we prepared some precompiled libs that should work, but with time this could be no longer the case.  
 [script-docker.sh](./script-docker.sh) is a script that can automatically compile and populate the needed files into libvips_x64 folder in the repo. One important thing to keep in mind is that Amplify environment does not necessarily use the latest Amazon Linux 2023 image, so we need to downgrade to the needed version for some of the tools we use, particularly **glib2**, to the version that Amplify uses. We have **GLIB_VERSION** environment variable with a default value, you can override by invoking `GLIB_VERSION=xxxxxx ./script-docker.sh` 
 

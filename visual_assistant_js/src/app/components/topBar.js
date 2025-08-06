@@ -68,7 +68,7 @@ const TopBar = () => {
               checked={navigationModeActivated}
               onChange={({ detail }) => setNavigationModeActivated(detail.checked)}
             >
-              <span style={{ color: 'white', fontSize: '12px'}}>Switch to navigation mode</span>
+              <span style={{ color: 'white', fontSize: '12px' }}>Switch to navigation mode</span>
             </Toggle>
           </div>
         </Flex>

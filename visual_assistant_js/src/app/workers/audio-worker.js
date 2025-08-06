@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
@@ -22,8 +22,8 @@ env.localModelPath = '/models/';
 env.backends.onnx.wasm.wasmPaths = {
   // A
   mjs: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort-wasm-simd-threaded.mjs',
-  wasm: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort-wasm-simd-threaded.wasm'
-}
+  wasm: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort-wasm-simd-threaded.wasm',
+};
 
 let audioPipeline = null;
 let vocoderPipeline = null;
@@ -152,7 +152,7 @@ self.addEventListener('message', async (event) => {
       wav.fromScratch(
         1,
         16000,
-        "32f",
+        '32f',
         waveform.data
       );
       const wavBuffer = wav.toBuffer();
