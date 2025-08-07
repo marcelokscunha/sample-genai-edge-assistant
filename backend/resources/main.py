@@ -84,6 +84,12 @@ class MyStack(Stack):
         amplify_app_id = self.node.try_get_context("amplify_app_id")
         no_amplify = str(self.node.try_get_context("no_amplify"))
         import_existing_s3_buckets_cli = str(self.node.try_get_context("import_s3"))
+        
+        # Custom domain configuration (optional)
+        # To use a custom domain, provide both parameters:
+        # --context custom_domain_name=api.yourdomain.com --context certificate_arn=arn:aws:acm:...
+        custom_domain_name = self.node.try_get_context("custom_domain_name")
+        certificate_arn = self.node.try_get_context("certificate_arn")
 
         if import_existing_s3_buckets_cli == "y":
             print("🪣 Importing existing S3 buckets")
@@ -102,6 +108,25 @@ class MyStack(Stack):
                 )
             amplify_app_id = str(amplify_app_id)
             amplify_install = True
+
+        # Centralized CORS origins configuration
+        cors_allowed_origins = []
+        if custom_domain_name:
+            cors_allowed_origins.append(f"https://{custom_domain_name}")
+
+        else:
+            # Add custom domain to CORS origins if provided (when no custom domain)
+            # Add new Amplify branch URLs here to allow CORS access
+            base_origins = (
+                [
+                    f"https://main.{amplify_app_id}.amplifyapp.com",
+                    f"https://feature-simplify-deployment.{amplify_app_id}.amplifyapp.com",
+                    "http://localhost:3000",
+                ]
+                if amplify_install
+                else CUSTOM_ALLOWED_RESOURCES
+            )
+            cors_allowed_origins.extend(base_origins)
 
         ####### METADATA ########
 
@@ -370,14 +395,7 @@ class MyStack(Stack):
                     s3.CorsRule(
                         allowed_methods=[s3.HttpMethods.GET, s3.HttpMethods.POST],
                         exposed_headers=["ETag"],
-                        allowed_origins=(
-                            [
-                                f"https://*.{amplify_app_id}.amplifyapp.com",
-                                "http://localhost:3000",
-                            ]
-                            if amplify_install
-                            else CUSTOM_ALLOWED_RESOURCES
-                        ),
+                        allowed_origins=cors_allowed_origins,
                         allowed_headers=[
                             "Authorization",
                             "Content-Type",
@@ -695,14 +713,9 @@ class MyStack(Stack):
             vpc_invoke_sagemaker=stack_vpc,
             cognito_user_pool=cognito_user_pool,
             cognito_user_pool_client=cognito_user_pool_client,
-            trusted_origins=(
-                [
-                    f"https://*.{amplify_app_id}.amplifyapp.com",
-                    "http://localhost:3000",
-                ]
-                if amplify_install
-                else CUSTOM_ALLOWED_RESOURCES
-            ),
+            trusted_origins=cors_allowed_origins,
+            custom_domain_name=custom_domain_name,
+            certificate_arn=certificate_arn,
         )
 
         ########## EVENTBRIDGE #############
