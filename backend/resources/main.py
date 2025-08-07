@@ -372,10 +372,7 @@ class MyStack(Stack):
                         exposed_headers=["ETag"],
                         allowed_origins=(
                             [
-                                f"https://main.{amplify_app_id}.amplifyapp.com",
-                                f"https://dev-newest.{amplify_app_id}.amplifyapp.com",
-                                f"https://test.{amplify_app_id}.amplifyapp.com",
-                                f"https://open-source.{amplify_app_id}.amplifyapp.com",
+                                f"https://*.{amplify_app_id}.amplifyapp.com",
                                 "http://localhost:3000",
                             ]
                             if amplify_install
@@ -700,10 +697,7 @@ class MyStack(Stack):
             cognito_user_pool_client=cognito_user_pool_client,
             trusted_origins=(
                 [
-                    f"https://main.{amplify_app_id}.amplifyapp.com",
-                    f"https://dev-newest.{amplify_app_id}.amplifyapp.com",
-                    f"https://test.{amplify_app_id}.amplifyapp.com",
-                    f"https://open-source.{amplify_app_id}.amplifyapp.com",
+                    f"https://*.{amplify_app_id}.amplifyapp.com",
                     "http://localhost:3000",
                 ]
                 if amplify_install
