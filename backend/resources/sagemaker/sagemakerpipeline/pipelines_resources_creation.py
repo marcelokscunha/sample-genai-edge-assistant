@@ -9,6 +9,8 @@ from sagemaker.workflow.pipeline_context import PipelineSession
 import shared_variables as shared_variables
 from pipelines.generic_download_pack_pipeline_definition import \
     GenericDownloadAndPackPipeline
+from pipelines.navigation_pipeline_definition import \
+    NavigationModelTrainingPipeline
 
 # ANSI escape code for green text
 GREEN = "\033[92m"
@@ -62,6 +64,10 @@ SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME = get_output_value(
     outputs,
     shared_variables.CDK_OUT_EXPORT_SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
 )
+SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME = get_output_value(
+    outputs,
+    shared_variables.CDK_OUT_EXPORT_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
+)
 USER_SAGEMAKER_TEAM = get_output_value(
     outputs, shared_variables.CDK_OUT_EXPORT_USER_SAGEMAKER_TEAM
 )
@@ -87,6 +93,7 @@ print(SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME)
+print(SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME)
 print(EXECUTION_ROLE)
 print("********\n\n")
 
@@ -270,5 +277,36 @@ if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
         pipeline_execution = vocoder_pipeline.start()
     print(
         f"{GREEN}Vocoder pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+    )
+print("\n\n")
+
+# Deploy the navigation model preparation pipeline
+navigation_preparation_pipeline = NavigationModelTrainingPipeline(
+    pipeline_name=shared_variables.BOTO3_NAVIGATION_PREPARATION_PIPELINE_NAME,
+    input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
+    output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+    prefix_bucket_path="navigation",
+    pipeline_session=pipeline_session,
+    package_group_name_p=SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
+    execution_role=EXECUTION_ROLE,
+    region=REGION,
+    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/navigation/script",
+    sagemaker_session=sagemaker_session,
+).get_pipeline()
+
+pipeline_response = navigation_preparation_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+navigation_preparation_pipeline_arn = pipeline_response["PipelineArn"]
+
+print(
+    f"{GREEN}Navigation preparation pipeline created or updated with ARN: {navigation_preparation_pipeline_arn}{RESET}"
+)
+
+if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+        pipeline_execution = navigation_preparation_pipeline.start({"DefaultApprovalStatus": "Approved"})
+    else:
+        pipeline_execution = navigation_preparation_pipeline.start()
+    print(
+        f"{GREEN}Navigation preparation pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
     )
 print("\n\n")

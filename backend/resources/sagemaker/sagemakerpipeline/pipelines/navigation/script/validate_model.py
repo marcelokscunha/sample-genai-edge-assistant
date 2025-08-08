@@ -2,6 +2,9 @@ import base64
 import json
 import os
 import pathlib
+import tarfile
+import tempfile
+from pathlib import Path
 from pprint import pprint
 
 from src.inference import model_fn, predict_fn, input_fn, output_fn
@@ -49,56 +52,85 @@ def validate_output_format(result):
 
 if __name__ == "__main__":
     HERE = pathlib.Path(__file__).parent.absolute()
-    ARTIFACTS_DIR = HERE / "ARTIFACTS" / "model"
+    
+    # Check if running in SageMaker processing job environment
+    input_dir = Path(os.environ.get("SM_PROCESSING_INPUT_DIR", "/opt/ml/processing/input"))
+    model_input_dir = input_dir / "model"
+    
+    if model_input_dir.exists():
+        # SageMaker processing job - extract model.tar.gz
+        print("Running in SageMaker processing job environment")
+        model_tar_path = model_input_dir / "model.tar.gz"
+        if not model_tar_path.exists():
+            # Look for any .tar.gz file
+            tar_files = list(model_input_dir.glob("*.tar.gz"))
+            if tar_files:
+                model_tar_path = tar_files[0]
+            else:
+                raise RuntimeError(f"No model.tar.gz file found in {model_input_dir}")
+        
+        # Extract to temporary directory
+        with tempfile.TemporaryDirectory() as temp_dir:
+            extract_dir = Path(temp_dir) / "extracted_model"
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            
+            print(f"Extracting model from {model_tar_path} to {extract_dir}")
+            with tarfile.open(model_tar_path, 'r:gz') as tar:
+                tar.extractall(path=extract_dir)
+            
+            ARTIFACTS_DIR = extract_dir
+    else:
+        # Local testing
+        print("Running in local environment")
+        ARTIFACTS_DIR = HERE / "ARTIFACTS" / "model"
+        if not ARTIFACTS_DIR.exists():
+            raise RuntimeError("ARTIFACTS directory does not exist. Please run the prepare_model_files.py script first.")
 
-    if not ARTIFACTS_DIR.exists():
-        raise RuntimeError("ARTIFACTS directory does not exist. Please run the prepare_model_files.py script first.")
-
-    print("Testing full inference pipeline...")
-    
-    # Step 1: Load model
-    print("1. Loading model...")
-    pipeline = model_fn(str(ARTIFACTS_DIR))
-    print("✓ Model loaded successfully")
-    
-    # Step 2: Prepare input data as JSON string (as it would come from SageMaker endpoint)
-    print("2. Preparing input data...")
-    input_data = {
-        "image": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg"),
-        "nav_goal": "sidewalk"
-    }
-    json_input = json.dumps(input_data)
-    print("✓ Input data prepared")
-    
-    # Step 3: Test input_fn
-    print("3. Testing input_fn...")
-    parsed_input = input_fn(json_input, "application/json")
-    assert isinstance(parsed_input, dict)
-    print("✓ input_fn processed successfully")
-    
-    # Step 4: Test predict_fn
-    print("4. Testing predict_fn...")
-    prediction = predict_fn(parsed_input, pipeline)
-    assert isinstance(prediction, str)
-    print("✓ predict_fn completed successfully")
-    
-    # Step 5: Test output_fn
-    print("5. Testing output_fn...")
-    final_output = output_fn(prediction, "application/json")
-    assert isinstance(final_output, str)
-    print("✓ output_fn completed successfully")
-    
-    # Step 6: Parse and validate final output
-    print("6. Validating output format...")
-    result_dict = json.loads(final_output)
-    validate_output_format(result_dict)
-    
-    print("\n" + "="*50)
-    print("FULL PIPELINE TEST RESULTS:")
-    print("="*50)
-    pprint(result_dict)
-    print("="*50)
-    print("✓ All tests passed! Full inference pipeline working correctly.")
+        print("Testing full inference pipeline...")
+        
+        # Step 1: Load model
+        print("1. Loading model...")
+        pipeline = model_fn(str(ARTIFACTS_DIR))
+        print("✓ Model loaded successfully")
+        
+        # Step 2: Prepare input data as JSON string (as it would come from SageMaker endpoint)
+        print("2. Preparing input data...")
+        input_data = {
+            "image": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg"),
+            "nav_goal": "sidewalk"
+        }
+        json_input = json.dumps(input_data)
+        print("✓ Input data prepared")
+        
+        # Step 3: Test input_fn
+        print("3. Testing input_fn...")
+        parsed_input = input_fn(json_input, "application/json")
+        assert isinstance(parsed_input, dict)
+        print("✓ input_fn processed successfully")
+        
+        # Step 4: Test predict_fn
+        print("4. Testing predict_fn...")
+        prediction = predict_fn(parsed_input, pipeline)
+        assert isinstance(prediction, str)
+        print("✓ predict_fn completed successfully")
+        
+        # Step 5: Test output_fn
+        print("5. Testing output_fn...")
+        final_output = output_fn(prediction, "application/json")
+        assert isinstance(final_output, str)
+        print("✓ output_fn completed successfully")
+        
+        # Step 6: Parse and validate final output
+        print("6. Validating output format...")
+        result_dict = json.loads(final_output)
+        validate_output_format(result_dict)
+        
+        print("\n" + "="*50)
+        print("FULL PIPELINE TEST RESULTS:")
+        print("="*50)
+        pprint(result_dict)
+        print("="*50)
+        print("✓ All tests passed! Full inference pipeline working correctly.")
     # {'response': 'The image shows a street scene with a sidewalk running along the '
     #             "right side of the frame. On the left side, there's a set of "
     #             'outdoor stairs leading up to a building with a black iron '
