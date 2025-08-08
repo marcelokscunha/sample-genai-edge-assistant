@@ -15,9 +15,9 @@ import sys
 
 # Mock huggingface_hub before importing prepare_model_files
 sys.modules['huggingface_hub'] = MagicMock()
-sys.modules['code.inference'] = MagicMock()
+sys.modules['inference'] = MagicMock()
 
-from prepare_model_files import get_hf_token_from_secrets, create_model_archive
+from src.train import get_hf_token_from_secrets, create_model_archive
 
 
 @pytest.fixture(scope="function")
@@ -124,7 +124,7 @@ def test_invalid_token_format_wrong_prefix(secretsmanager_client, secret_name):
 def test_no_credentials_error(secret_name):
     """Test handling when AWS credentials are not available."""
     # Mock NoCredentialsError by patching boto3.client
-    with patch('prepare_model_files.boto3.client') as mock_client:
+    with patch('src.train.boto3.client') as mock_client:
         mock_client.side_effect = NoCredentialsError()
         
         # Call the function and expect RuntimeError
@@ -138,7 +138,7 @@ def test_no_credentials_error(secret_name):
 def test_unexpected_error(secret_name):
     """Test handling of unexpected errors."""
     # Mock unexpected exception by patching boto3.client
-    with patch('prepare_model_files.boto3.client') as mock_client:
+    with patch('src.train.boto3.client') as mock_client:
         mock_client.side_effect = Exception("Internal system failure")
         
         # Call the function and expect RuntimeError
