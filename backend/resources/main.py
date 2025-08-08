@@ -728,6 +728,7 @@ class MyStack(Stack):
             self.sagemaker_domain_users_models_construct.vocoder_model_package_group.model_package_group_name,
             self.sagemaker_domain_users_models_construct.image_captioning_model_package_group.model_package_group_name,
             self.sagemaker_domain_users_models_construct.object_detection_model_package_group.model_package_group_name,
+            self.sagemaker_domain_users_models_construct.navigation_model_package_group.model_package_group_name,
         ]
         rule = events.Rule(
             self,
