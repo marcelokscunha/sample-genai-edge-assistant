@@ -1,9 +1,10 @@
 import base64
+import json
 import os
 import pathlib
 from pprint import pprint
 
-from src.inference import model_fn, predict_fn
+from src.inference import model_fn, predict_fn, input_fn, output_fn
 
 def get_base64_from_image(image_path: str) -> str:
     """Convert image file to base64 data URI format."""
@@ -13,6 +14,34 @@ def get_base64_from_image(image_path: str) -> str:
         data_uri = f"data:image/jpeg;base64,{b64_str}"
     return data_uri
 
+def validate_output_format(result):
+    """Validate that the output matches the expected format from the commented example."""
+    # Expected format: {'response': 'string with navigation guidance'}
+    if not isinstance(result, dict):
+        raise ValueError(f"Expected dict output, got {type(result)}")
+    
+    if 'response' not in result:
+        raise ValueError("Output dict must contain 'response' key")
+    
+    response = result['response']
+    if not isinstance(response, str):
+        raise ValueError(f"Response must be string, got {type(response)}")
+    
+    if len(response.strip()) == 0:
+        raise ValueError("Response cannot be empty")
+    
+    # Check for navigation guidance keywords
+    response_lower = response.lower()
+    navigation_keywords = ['right', 'left', 'forward', 'no_action']
+    found_keywords = [kw for kw in navigation_keywords if kw in response_lower]
+    
+    if not found_keywords:
+        print("Warning: Response may not contain expected navigation guidance (no keywords detected)")
+    else:
+        print(f"✓ Found navigation keywords: {found_keywords}")
+    
+    print("✓ Output format validation passed")
+    return True
 
 # Requirements:
 # - You have the local artifacts for the model (have ran 'python prepare_model_files.py')
@@ -25,14 +54,51 @@ if __name__ == "__main__":
     if not ARTIFACTS_DIR.exists():
         raise RuntimeError("ARTIFACTS directory does not exist. Please run the prepare_model_files.py script first.")
 
-    print(f"Predicting with test data...")
+    print("Testing full inference pipeline...")
+    
+    # Step 1: Load model
+    print("1. Loading model...")
     pipeline = model_fn(str(ARTIFACTS_DIR))
-    payload = {
-        "image": get_base64_from_image(HERE.parent / "data" / "samples" / "sidewalk.jpg"),
+    print("✓ Model loaded successfully")
+    
+    # Step 2: Prepare input data as JSON string (as it would come from SageMaker endpoint)
+    print("2. Preparing input data...")
+    input_data = {
+        "image": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg"),
         "nav_goal": "sidewalk"
     }
-
-    pprint(predict_fn(payload, pipeline))
+    json_input = json.dumps(input_data)
+    print("✓ Input data prepared")
+    
+    # Step 3: Test input_fn
+    print("3. Testing input_fn...")
+    parsed_input = input_fn(json_input, "application/json")
+    assert isinstance(parsed_input, dict)
+    print("✓ input_fn processed successfully")
+    
+    # Step 4: Test predict_fn
+    print("4. Testing predict_fn...")
+    prediction = predict_fn(parsed_input, pipeline)
+    assert isinstance(prediction, str)
+    print("✓ predict_fn completed successfully")
+    
+    # Step 5: Test output_fn
+    print("5. Testing output_fn...")
+    final_output = output_fn(prediction, "application/json")
+    assert isinstance(final_output, str)
+    print("✓ output_fn completed successfully")
+    
+    # Step 6: Parse and validate final output
+    print("6. Validating output format...")
+    result_dict = json.loads(final_output)
+    validate_output_format(result_dict)
+    
+    print("\n" + "="*50)
+    print("FULL PIPELINE TEST RESULTS:")
+    print("="*50)
+    pprint(result_dict)
+    print("="*50)
+    print("✓ All tests passed! Full inference pipeline working correctly.")
     # {'response': 'The image shows a street scene with a sidewalk running along the '
     #             "right side of the frame. On the left side, there's a set of "
     #             'outdoor stairs leading up to a building with a black iron '

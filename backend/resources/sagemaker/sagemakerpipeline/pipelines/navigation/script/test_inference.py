@@ -8,6 +8,7 @@ from pprint import pprint
 
 from src.inference import model_fn, predict_fn, input_fn, output_fn, InferenceInput, InferenceResponse
 
+# Make sure you installed the required dependencies (src/requirements.txt)
 
 def test_input_fn_valid_json():
     """Test input function with valid JSON."""

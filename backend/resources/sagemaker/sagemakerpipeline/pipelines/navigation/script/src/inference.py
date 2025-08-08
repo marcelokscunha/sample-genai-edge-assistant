@@ -105,7 +105,7 @@ def predict_fn(payload: Dict, pipeline: NavigationPipeline) -> str:
 class InferenceResponse(BaseModel):
     response: str
 
-def output_fn(prediction: str, accept: str) -> Dict:
+def output_fn(prediction: str, accept: str) -> str:
     if accept == "application/json":
         return InferenceResponse(response=prediction).model_dump_json()
     else:
