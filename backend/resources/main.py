@@ -747,6 +747,70 @@ class MyStack(Stack):
 
         rule.add_target(targets.LambdaFunction(function_copy_model_from_s3_to_s3))
 
+        # EventBridge rule for triggering navigation deployment pipeline directly
+        # Create IAM role for EventBridge to execute SageMaker pipeline
+        eventbridge_sagemaker_role = iam.Role(
+            self,
+            "EventBridgeSageMakerPipelineExecutionRole",
+            assumed_by=iam.ServicePrincipal("events.amazonaws.com"),
+        )
+
+        # Add SageMaker pipeline execution permissions
+        eventbridge_sagemaker_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "sagemaker:StartPipelineExecution",
+                ],
+                resources=[
+                    f"arn:aws:sagemaker:{self.region}:{self.account}:pipeline/{shared_variables.BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME}",
+                ],
+            )
+        )
+
+        # EventBridge rule specifically for navigation model approval events
+        navigation_deployment_rule = events.Rule(
+            self,
+            "NavigationModelDeploymentRule",
+            rule_name="trigger-navigation-deployment-pipeline",
+            description=f"Triggers the navigation deployment pipeline when navigation models are approved in the Model Registry",
+            event_pattern=events.EventPattern(
+                source=["aws.sagemaker"],
+                detail_type=["SageMaker Model Package State Change"],
+                detail={
+                    "ModelPackageGroupName": [self.sagemaker_domain_users_models_construct.navigation_model_package_group.model_package_group_name],
+                    "ModelApprovalStatus": ["Approved"],
+                },
+            ),
+        )
+
+        # Add SageMaker pipeline as direct target using AwsApi target
+        navigation_deployment_rule.add_target(
+            targets.AwsApi(
+                service="sagemaker",
+                action="startPipelineExecution",
+                parameters={
+                    "PipelineName": shared_variables.BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME,
+                    "PipelineParameters": [
+                        {
+                            "Name": "ModelPackageArn",
+                            "Value": "$.detail.ModelPackageArn"  # Extract from EventBridge event
+                        }
+                    ],
+                    "PipelineExecutionDisplayName": "navigation-deployment-$.detail.ModelPackageArn"
+                },
+                role=eventbridge_sagemaker_role
+            )
+        )
+
+        # Export the EventBridge pipeline execution role ARN for reference
+        CfnOutput(
+            self,
+            shared_variables.CDK_OUT_KEY_EVENTBRIDGE_PIPELINE_EXECUTION_ROLE_ARN,
+            value=eventbridge_sagemaker_role.role_arn,
+            description="The EventBridge pipeline execution role ARN for navigation deployment",
+            export_name=shared_variables.CDK_OUT_EXPORT_EVENTBRIDGE_PIPELINE_EXECUTION_ROLE_ARN,
+        )
+
         ####### AMPLIFY #######
 
         if amplify_install:

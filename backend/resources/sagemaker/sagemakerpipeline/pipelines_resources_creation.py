@@ -280,6 +280,33 @@ if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
     )
 print("\n\n")
 
+# Deploy the navigation model deployment pipeline FIRST
+# This ensures the deployment pipeline exists when the preparation pipeline approves models
+# This pipeline is triggered by EventBridge when navigation models are approved, not manually
+from pipelines.navigation_pipeline_definition import NavigationModelDeploymentPipeline
+
+navigation_deployment_pipeline = NavigationModelDeploymentPipeline(
+    pipeline_name=shared_variables.BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME,
+    output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+    prefix_bucket_path="navigation",
+    pipeline_session=pipeline_session,
+    execution_role=EXECUTION_ROLE,
+    region=REGION,
+    sagemaker_session=sagemaker_session,
+).get_pipeline()
+
+pipeline_response = navigation_deployment_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+navigation_deployment_pipeline_arn = pipeline_response["PipelineArn"]
+
+print(
+    f"{GREEN}Navigation deployment pipeline created or updated with ARN: {navigation_deployment_pipeline_arn}{RESET}"
+)
+
+# Note: This deployment pipeline is NOT triggered manually - it's triggered automatically by EventBridge
+# when navigation models are approved in the Model Registry
+print(f"{GREEN}Navigation deployment pipeline will be triggered automatically by EventBridge when navigation models are approved{RESET}")
+print("\n\n")
+
 # Deploy the navigation model preparation pipeline
 navigation_preparation_pipeline = NavigationModelTrainingPipeline(
     pipeline_name=shared_variables.BOTO3_NAVIGATION_PREPARATION_PIPELINE_NAME,
