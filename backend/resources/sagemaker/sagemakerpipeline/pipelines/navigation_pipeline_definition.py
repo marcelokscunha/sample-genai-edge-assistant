@@ -12,6 +12,8 @@ from sagemaker.workflow.parameters import ParameterString
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.step_collections import RegisterModel
 from sagemaker.workflow.steps import ProcessingStep, TrainingStep
+from sagemaker.workflow.lambda_step import LambdaStep
+from sagemaker.lambda_helper import Lambda
 
 
 class NavigationModelTrainingPipeline:
@@ -179,6 +181,53 @@ class NavigationModelTrainingPipeline:
             depends_on=[validation_step],
         )
 
+        # Step 4: Inference Recommendation (Optional/Non-blocking)
+        # Lambda function for creating inference recommendation job
+        inference_recommendation_lambda = Lambda(
+            function_name="navigation-inference-recommendation",
+            execution_role_arn=execution_role,
+            script=f"{script_path}/../../../functions/setup/inference_recommendation/src/inference_recommendation_lambda.py",
+            handler="inference_recommendation_lambda.handler",
+            timeout=900,  # 15 minutes timeout
+            memory_size=256,
+        )
+
+        # S3 URI for storing inference recommendation results
+        inference_results_s3_uri = Join(
+            on="/",
+            values=[
+                final_model_output_s3_uri,
+                "inference-recommendations"
+            ],
+        )
+
+        inference_recommendation_step = LambdaStep(
+            name="InferenceRecommendation",
+            display_name="Create Inference Recommendation Job",
+            description="Create SageMaker Inference Recommender job for the registered model (non-blocking)",
+            lambda_func=inference_recommendation_lambda,
+            inputs={
+                "model_package_arn": register_model_step.properties.ModelPackageArn,
+                "job_name": Join(
+                    on="-",
+                    values=[
+                        "navigation-inference-rec",
+                        ExecutionVariables.PIPELINE_EXECUTION_ID
+                    ]
+                ),
+                "results_s3_bucket": output_bucket_name,
+                "results_s3_prefix": Join(
+                    on="/",
+                    values=[
+                        prefix_bucket_path,
+                        "inference-recommendations",
+                        ExecutionVariables.PIPELINE_EXECUTION_ID
+                    ]
+                )
+            },
+            depends_on=[register_model_step],
+        )
+
         # Define the pipeline
         self.pipeline = Pipeline(
             name=pipeline_name,
@@ -193,7 +242,8 @@ class NavigationModelTrainingPipeline:
             steps=[
                 training_step,
                 validation_step, 
-                register_model_step
+                register_model_step,
+                inference_recommendation_step
             ],
             sagemaker_session=sagemaker_session,
         )
