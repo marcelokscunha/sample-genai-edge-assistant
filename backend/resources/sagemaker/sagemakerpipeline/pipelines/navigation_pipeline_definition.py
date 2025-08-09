@@ -8,7 +8,7 @@ from sagemaker.pytorch.estimator import PyTorch
 from sagemaker.processing import FrameworkProcessor
 from sagemaker.workflow.execution_variables import ExecutionVariables
 from sagemaker.workflow.functions import Join
-from sagemaker.workflow.parameters import ParameterString
+from sagemaker.workflow.parameters import ParameterString, ParameterInteger, ParameterFloat
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.step_collections import RegisterModel
 from sagemaker.workflow.steps import ProcessingStep, TrainingStep
@@ -244,6 +244,142 @@ class NavigationModelTrainingPipeline:
                 validation_step, 
                 register_model_step,
                 inference_recommendation_step
+            ],
+            sagemaker_session=sagemaker_session,
+        )
+
+    def get_pipeline(self):
+        return self.pipeline
+
+
+class NavigationModelDeploymentPipeline:
+    """
+    Navigation Model Deployment Pipeline for deploying approved Gemma3n models.
+    
+    This pipeline handles:
+    1. Endpoint deployment using approved model package from registry
+    2. Autoscaling configuration using Lambda function
+    
+    The pipeline is triggered by EventBridge when a model is approved in the registry.
+    This is the second pipeline in the two-pipeline architecture as specified in the requirements.
+    """
+
+    def __init__(
+        self,
+        pipeline_name,
+        output_bucket_name,
+        prefix_bucket_path,
+        pipeline_session,
+        execution_role,
+        region,
+        sagemaker_session,
+    ):
+
+        # Pipeline parameters - model package ARN provided by EventBridge trigger
+        model_package_arn = ParameterString(
+            name="ModelPackageArn",
+            default_value=""  # Provided by EventBridge trigger
+        )
+
+        endpoint_name = ParameterString(
+            name="EndpointName",
+            default_value="vis-assis-navigation-endpoint"
+        )
+
+        # Instance configuration for deployment
+        instance_type = ParameterString(
+            name="InstanceType",
+            default_value="ml.g5.xlarge"  # GPU instance suitable for Gemma3n model
+        )
+
+        initial_instance_count = ParameterInteger(
+            name="InitialInstanceCount",
+            default_value=1
+        )
+
+        # Autoscaling configuration parameters
+        min_capacity = ParameterInteger(
+            name="MinCapacity",
+            default_value=1
+        )
+
+        max_capacity = ParameterInteger(
+            name="MaxCapacity", 
+            default_value=2
+        )
+
+        target_invocations_per_instance = ParameterFloat(
+            name="TargetInvocationsPerInstance",
+            default_value=10.0
+        )
+
+        # Step 1: Deploy endpoint using Lambda function
+        # Lambda function for deploying the endpoint from model package
+        # TODO: replace by built-in Step for endpoint deployment when SageMaker SDK supports it
+        deploy_lambda = Lambda(
+            function_name="deploy-navigation-endpoint",
+            execution_role_arn=execution_role,
+            script="backend/functions/setup/deploy_navigation_endpoint/src/endpoint_deployment_lambda.py",
+            handler="endpoint_deployment_lambda.handler",
+            timeout=900,  # 15 minutes timeout for endpoint deployment
+            memory_size=512,
+        )
+
+        deploy_step = LambdaStep(
+            name="DeployNavigationEndpoint",
+            display_name="Deploy Navigation Endpoint",
+            description="Deploy the navigation model as a SageMaker endpoint from approved model package",
+            lambda_func=deploy_lambda,
+            inputs={
+                "model_package_arn": model_package_arn,
+                "endpoint_name": endpoint_name,
+                "instance_type": instance_type,
+                "initial_instance_count": initial_instance_count,
+                "execution_role": execution_role,
+                "region": region,
+            },
+        )
+
+        # Step 2: Configure autoscaling using Lambda function
+        # Lambda function for configuring endpoint autoscaling
+        autoscaling_lambda = Lambda(
+            function_name="setup-navigation-endpoint-autoscaling",
+            execution_role_arn=execution_role,
+            script="backend/functions/setup/setup_navigation_endpoint_autoscaling/src/endpoint_autoscaling_lambda.py",
+            handler="lambda.handler",
+            timeout=300,  # 5 minutes timeout
+            memory_size=256,
+        )
+
+        autoscaling_step = LambdaStep(
+            name="ConfigureAutoscaling",
+            display_name="Configure Endpoint Autoscaling",
+            description="Configure autoscaling policies for the deployed navigation endpoint",
+            lambda_func=autoscaling_lambda,
+            inputs={
+                "endpoint_name": endpoint_name,
+                "min_capacity": min_capacity,
+                "max_capacity": max_capacity,
+                "target_value": target_invocations_per_instance,
+            },
+            depends_on=[deploy_step],
+        )
+
+        # Define the pipeline
+        self.pipeline = Pipeline(
+            name=pipeline_name,
+            parameters=[
+                model_package_arn,
+                endpoint_name,
+                instance_type,
+                initial_instance_count,
+                min_capacity,
+                max_capacity,
+                target_invocations_per_instance,
+            ],
+            steps=[
+                deploy_step,
+                autoscaling_step,
             ],
             sagemaker_session=sagemaker_session,
         )

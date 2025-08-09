@@ -10,15 +10,7 @@ import sys
 import os
 import importlib.util
 
-# Load the lambda module
-lambda_path = os.path.join(os.path.dirname(__file__), 'src', 'lambda.py')
-spec = importlib.util.spec_from_file_location("lambda_module", lambda_path)
-lambda_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(lambda_module)
-
-handler = lambda_module.handler
-setup_auto_scaling = lambda_module.setup_auto_scaling
-
+from src.endpoint_autoscaling_lambda import handler, setup_auto_scaling
 
 @mock_aws
 def test_handler_success():
