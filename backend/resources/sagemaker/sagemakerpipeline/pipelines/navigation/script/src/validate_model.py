@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 from pprint import pprint
 
-from src.inference import model_fn, predict_fn, input_fn, output_fn
+from inference import model_fn, predict_fn, input_fn, output_fn
 
 HERE = pathlib.Path(__file__).parent.absolute()
 
