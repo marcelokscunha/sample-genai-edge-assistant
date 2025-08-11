@@ -111,7 +111,7 @@ export default function ChatMode() {
       updateMessage(messageId, { status: 'sent' });
     }, 200);
 
-    // TODO: In task 8, integrate with SageMaker service to get AI response
+    // TODO: integrate with backend service to get AI response
     // For now, just add a placeholder response
     setTimeout(() => {
       const assistantMessage = {
@@ -272,7 +272,7 @@ export default function ChatMode() {
       >
         <SpaceBetween direction="vertical" size="m">
           {/* Chat messages area with fixed height */}
-          <div 
+          <div
             ref={messagesContainerRef}
             style={{
               height: '500px',

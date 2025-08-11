@@ -85,8 +85,38 @@ function ChatMessage({ message, onRetry }) {
           <div>{content.text}</div>
         )}
 
-        {/* Image content */}
-        {content.image && content.image.url && (
+        {/* Image content - support multiple images */}
+        {content.images && content.images.length > 0 && (
+          <SpaceBetween direction="vertical" size="xs">
+            {content.images.map((image, index) => (
+              <Box key={`image-${index}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={image.url}
+                  alt={`Shared image ${index + 1}${image.name ? ` - ${image.name}` : ''}`}
+                  style={{
+                    maxWidth: '300px',
+                    maxHeight: '200px',
+                    borderRadius: '8px',
+                    objectFit: 'cover',
+                  }}
+                  onError={(e) => {
+                    console.error('Image failed to load:', image.url);
+                    e.target.style.display = 'none';
+                  }}
+                />
+                {image.name && (
+                  <Box variant="small" color="text-body-secondary" padding={{ top: 'xxs' }}>
+                    {image.name}
+                  </Box>
+                )}
+              </Box>
+            ))}
+          </SpaceBetween>
+        )}
+
+        {/* Legacy single image support */}
+        {content.image && content.image.url && !content.images && (
           <Box>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -106,8 +136,32 @@ function ChatMessage({ message, onRetry }) {
           </Box>
         )}
 
-        {/* Audio content */}
-        {content.audio && content.audio.url && (
+        {/* Audio content - support multiple audio files */}
+        {content.audios && content.audios.length > 0 && (
+          <SpaceBetween direction="vertical" size="xs">
+            {content.audios.map((audio, index) => (
+              <Box key={`audio-${index}`}>
+                <audio
+                  controls
+                  style={{ maxWidth: '300px' }}
+                  preload="metadata"
+                >
+                  <source src={audio.url} type="audio/wav" />
+                  <source src={audio.url} type="audio/mp3" />
+                  <source src={audio.url} type="audio/m4a" />
+                  Your browser does not support the audio element.
+                </audio>
+                <Box variant="small" color="text-body-secondary" padding={{ top: 'xxs' }}>
+                  {audio.name}
+                  {audio.duration && ` • Duration: ${Math.round(audio.duration)}s`}
+                </Box>
+              </Box>
+            ))}
+          </SpaceBetween>
+        )}
+
+        {/* Legacy single audio support */}
+        {content.audio && content.audio.url && !content.audios && (
           <Box>
             <audio
               controls
