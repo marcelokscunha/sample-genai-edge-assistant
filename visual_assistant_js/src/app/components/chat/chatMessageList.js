@@ -264,11 +264,19 @@ export default function ChatMessageList({ messages = [], isLoading = false, onRe
 
   // Auto-scroll to latest messages - using the ref passed from parent
   useEffect(() => {
-    setTimeout(() => {
+    const scrollToBottom = () => {
       if (messagesContainerRef?.current) {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        const container = messagesContainerRef.current;
+        container.scrollTop = container.scrollHeight;
       }
-    }, 0);
+    };
+
+    // Use requestAnimationFrame for smoother scrolling
+    const timeoutId = setTimeout(() => {
+      requestAnimationFrame(scrollToBottom);
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
   }, [messages, isLoading, messagesContainerRef]);
 
   // Handle retry function

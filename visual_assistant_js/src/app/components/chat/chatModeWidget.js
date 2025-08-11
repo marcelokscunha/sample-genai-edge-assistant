@@ -22,7 +22,7 @@ import { useChatStore } from 'src/app/stores/chatStore';
 import TopBar from 'src/app/components/topBar';
 import ChatMessageList from './chatMessageList';
 import ChatInput from './chatInput';
-import { FittedContainer, ScrollableContainer } from './chatHelpers';
+
 
 /**
  * ChatMode component - Main container for the chat interface
@@ -99,7 +99,7 @@ export default function ChatMode() {
   // Handle sending messages
   const handleSendMessage = (message) => {
     // Generate ID for the message
-    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const messageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
     // Add message to store with 'sending' status and ID
     const userMessage = { ...message, id: messageId, status: 'sending' };
@@ -272,14 +272,17 @@ export default function ChatMode() {
       >
         <SpaceBetween direction="vertical" size="m">
           {/* Chat messages area with fixed height */}
-          <div style={{
-            height: '500px',
-            border: '1px solid #e9ebed',
-            borderRadius: '8px',
-            padding: '16px',
-            overflowY: 'auto',
-            backgroundColor: '#fafbfc'
-          }}>
+          <div 
+            ref={messagesContainerRef}
+            style={{
+              height: '500px',
+              border: '1px solid #e9ebed',
+              borderRadius: '8px',
+              padding: '16px',
+              overflowY: 'auto',
+              backgroundColor: '#fafbfc'
+            }}
+          >
             <ChatMessageList
               messages={messages}
               isLoading={chatLoading}
