@@ -16,7 +16,7 @@
 import json
 
 import shared_variables as shared_variables
-from aws_cdk import Aws, CfnOutput, Duration, RemovalPolicy, Stack
+from aws_cdk import Aws, CfnOutput, Duration, RemovalPolicy, Stack, SecretValue
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
@@ -25,6 +25,7 @@ from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_sagemaker as sagemaker
+from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import custom_resources as cr
 from cdk_nag import NagSuppressions
 from constructs import Construct
@@ -499,6 +500,30 @@ class MyStack(Stack):
             export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_EXECUTION_ROLE_ARN,
         )
 
+        ########## SECRETS MANAGER ############
+        
+        # Create Hugging Face token secret with placeholder value
+        # Users need to manually update this secret with their actual Hugging Face token
+        hf_token_secret = secretsmanager.Secret(
+            self,
+            "HuggingFaceTokenSecret",
+            secret_name=f"{self.stack_name}/huggingface-token",
+            description="Hugging Face token for model downloads. Replace with your actual token.",
+            secret_object_value={"token": SecretValue.unsafe_plain_text("REPLACE-WITH-YOUR-HF-TOKEN")},
+        )
+        
+        # Grant SageMaker execution role access to Hugging Face token secret
+        hf_token_secret.grant_read(sagemaker_execution_role)
+        
+        # Output the secret name for user reference
+        CfnOutput(
+            self,
+            shared_variables.CDK_OUT_KEY_DEFAULT_HF_TOKEN_SECRET_NAME,
+            value=hf_token_secret.secret_name,
+            description="Name of the Secrets Manager secret containing the Hugging Face token. Update this with your actual token.",
+            export_name=shared_variables.CDK_OUT_EXPORT_DEFAULT_HF_TOKEN_SECRET_NAME,
+        )
+
         ########## COGNITO ############
 
         cognito_construct_output = cognito_construct.CognitoConstruct(
@@ -703,6 +728,72 @@ class MyStack(Stack):
                 }
             ],
         )
+
+        ########## SAGEMAKER PIPELINE LAMBDA EXECUTION ROLE #############
+        
+        # Create Lambda execution role for SageMaker pipeline functions
+        sagemaker_pipeline_lambda_role = iam.Role(
+            self,
+            "SageMakerPipelineLambdaExecutionRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ],
+        )
+
+        # Add SageMaker permissions for pipeline Lambda functions
+        sagemaker_pipeline_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "sagemaker:CreateEndpoint",
+                    "sagemaker:CreateEndpointConfig",
+                    "sagemaker:CreateModel",
+                    "sagemaker:DescribeEndpoint",
+                    "sagemaker:DescribeEndpointConfig",
+                    "sagemaker:DescribeModel",
+                    "sagemaker:UpdateEndpoint",
+                    "sagemaker:DeleteEndpoint",
+                    "sagemaker:DeleteEndpointConfig",
+                    "sagemaker:DeleteModel",
+                    "sagemaker:CreateInferenceRecommendationsJob",
+                    "sagemaker:DescribeInferenceRecommendationsJob",
+                    "application-autoscaling:RegisterScalableTarget",
+                    "application-autoscaling:PutScalingPolicy",
+                    "application-autoscaling:DescribeScalableTargets",
+                    "application-autoscaling:DescribeScalingPolicies",
+                    "cloudwatch:PutMetricAlarm",
+                    "cloudwatch:DescribeAlarms",
+                    "iam:PassRole",
+                ],
+                resources=["*"],
+            )
+        )
+
+        # Add S3 permissions for model artifacts and results
+        sagemaker_pipeline_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket",
+                ],
+                resources=[
+                    f"{sagemaker_output_bucket.bucket_arn}",
+                    f"{sagemaker_output_bucket.bucket_arn}/*",
+                    f"{prod_model_artifacts_bucket.bucket_arn}",
+                    f"{prod_model_artifacts_bucket.bucket_arn}/*",
+                ],
+            )
+        )
+
+        CfnOutput(
+            self,
+            shared_variables.CDK_OUT_KEY_SAGEMAKER_PIPELINE_LAMBDA_ROLE_ARN,
+            value=sagemaker_pipeline_lambda_role.role_arn,
+            description="The Lambda execution role ARN for SageMaker pipeline functions",
+            export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_PIPELINE_LAMBDA_ROLE_ARN,
+        )
+
         ########## API GATEWAY #############
 
         apigw_construct = apigateway_construct.API(
@@ -747,26 +838,6 @@ class MyStack(Stack):
 
         rule.add_target(targets.LambdaFunction(function_copy_model_from_s3_to_s3))
 
-        # EventBridge rule for triggering navigation deployment pipeline directly
-        # Create IAM role for EventBridge to execute SageMaker pipeline
-        eventbridge_sagemaker_role = iam.Role(
-            self,
-            "EventBridgeSageMakerPipelineExecutionRole",
-            assumed_by=iam.ServicePrincipal("events.amazonaws.com"),
-        )
-
-        # Add SageMaker pipeline execution permissions
-        eventbridge_sagemaker_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "sagemaker:StartPipelineExecution",
-                ],
-                resources=[
-                    f"arn:aws:sagemaker:{self.region}:{self.account}:pipeline/{shared_variables.BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME}",
-                ],
-            )
-        )
-
         # EventBridge rule specifically for navigation model approval events
         navigation_deployment_rule = events.Rule(
             self,
@@ -783,7 +854,6 @@ class MyStack(Stack):
             ),
         )
 
-        # Add SageMaker pipeline as direct target using AwsApi target
         navigation_deployment_rule.add_target(
             targets.AwsApi(
                 service="sagemaker",
@@ -797,18 +867,8 @@ class MyStack(Stack):
                         }
                     ],
                     "PipelineExecutionDisplayName": "navigation-deployment-$.detail.ModelPackageArn"
-                },
-                role=eventbridge_sagemaker_role
+                }
             )
-        )
-
-        # Export the EventBridge pipeline execution role ARN for reference
-        CfnOutput(
-            self,
-            shared_variables.CDK_OUT_KEY_EVENTBRIDGE_PIPELINE_EXECUTION_ROLE_ARN,
-            value=eventbridge_sagemaker_role.role_arn,
-            description="The EventBridge pipeline execution role ARN for navigation deployment",
-            export_name=shared_variables.CDK_OUT_EXPORT_EVENTBRIDGE_PIPELINE_EXECUTION_ROLE_ARN,
         )
 
         ####### AMPLIFY #######

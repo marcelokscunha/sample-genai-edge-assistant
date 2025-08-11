@@ -31,13 +31,24 @@ def get_hf_token_from_secrets(secret_name: str = "huggingface-token") -> str:
     """
     try:
         logger.info(f"Retrieving Hugging Face token from Secrets Manager: {secret_name}")
-        secrets_client = boto3.client('secretsmanager')
+        # Get region from environment variable (SageMaker sets AWS_DEFAULT_REGION)
+        region = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+        secrets_client = boto3.client('secretsmanager', region_name=region)
         
         response = secrets_client.get_secret_value(SecretId=secret_name)
-        token = response['SecretString']
+        secret_string = response['SecretString']
         
-        if not token or not token.strip() or not token.startswith('hf_'):
-            raise ValueError("Invalid Hugging Face token format")
+        # Handle both JSON format and plain string format
+        try:
+            import json
+            secret_data = json.loads(secret_string)
+            token = secret_data.get('token', secret_string)
+        except json.JSONDecodeError:
+            # If it's not JSON, treat as plain string
+            token = secret_string
+        
+        if not token or not token.strip():
+            raise ValueError("Empty Hugging Face token")
             
         logger.info("Successfully retrieved Hugging Face token")
         return token

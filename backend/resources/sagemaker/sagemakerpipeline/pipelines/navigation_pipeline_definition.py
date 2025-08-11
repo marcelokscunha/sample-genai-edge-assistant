@@ -1,7 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-import shared_variables as shared_variables
 from sagemaker import image_uris
 from sagemaker.processing import ProcessingJob, ProcessingOutput, ProcessingInput
 from sagemaker.pytorch.estimator import PyTorch
@@ -15,6 +14,7 @@ from sagemaker.workflow.steps import ProcessingStep, TrainingStep
 from sagemaker.workflow.lambda_step import LambdaStep
 from sagemaker.lambda_helper import Lambda
 
+import shared_variables as shared_variables
 
 class NavigationModelTrainingPipeline:
     """
@@ -36,10 +36,12 @@ class NavigationModelTrainingPipeline:
         package_group_name_p,
         pipeline_session,
         execution_role,
+        lambda_execution_role,
         region,
         script_path,
         sagemaker_session,
         default_approval_status="PendingManualApproval",
+        default_hf_token_secret_name="huggingface-token"
     ):
 
         # Pipeline parameters
@@ -60,7 +62,7 @@ class NavigationModelTrainingPipeline:
 
         hf_token_secret_name = ParameterString(
             name="HuggingFaceTokenSecretName",
-            default_value="huggingface-token"
+            default_value=default_hf_token_secret_name
         )
 
         # Instance types - using same PyTorch environment as endpoint deployment
@@ -101,7 +103,8 @@ class NavigationModelTrainingPipeline:
             base_job_name="navigation-model-preparation",
             sagemaker_session=pipeline_session,
             environment={
-                "HF_TOKEN_SECRET_NAME": hf_token_secret_name
+                "HF_TOKEN_SECRET_NAME": hf_token_secret_name,
+                "AWS_DEFAULT_REGION": shared_variables.CDK_OUT_KEY_REGION
             },
             # Disable distributed training
             distribution=None,
@@ -140,7 +143,7 @@ class NavigationModelTrainingPipeline:
         # Use the run method to get step_args with proper source_dir
         step_args = pytorch_processor.run(
             code="validate_model.py",
-            source_dir=f"{script_path}/src",
+            source_dir=f"{script_path}",
             inputs=[
                 ProcessingInput(
                     source=training_step.properties.ModelArtifacts.S3ModelArtifacts,
@@ -185,8 +188,8 @@ class NavigationModelTrainingPipeline:
         # Lambda function for creating inference recommendation job
         inference_recommendation_lambda = Lambda(
             function_name="navigation-inference-recommendation",
-            execution_role_arn=execution_role,
-            script=f"{script_path}/../../../functions/setup/inference_recommendation/src/inference_recommendation_lambda.py",
+            execution_role_arn=lambda_execution_role,
+            script=f"{shared_variables.BACKEND_DIR}/functions/setup/inference_recommendation/src/inference_recommendation_lambda.py",
             handler="inference_recommendation_lambda.handler",
             timeout=900,  # 15 minutes timeout
             memory_size=256,
@@ -271,6 +274,7 @@ class NavigationModelDeploymentPipeline:
         prefix_bucket_path,
         pipeline_session,
         execution_role,
+        lambda_execution_role,
         region,
         sagemaker_session,
     ):
@@ -318,8 +322,8 @@ class NavigationModelDeploymentPipeline:
         # TODO: replace by built-in Step for endpoint deployment when SageMaker SDK supports it
         deploy_lambda = Lambda(
             function_name="deploy-navigation-endpoint",
-            execution_role_arn=execution_role,
-            script="backend/functions/setup/deploy_navigation_endpoint/src/endpoint_deployment_lambda.py",
+            execution_role_arn=lambda_execution_role,
+            script=f"{shared_variables.BACKEND_DIR}/functions/setup/deploy_navigation_endpoint/src/endpoint_deployment_lambda.py",
             handler="endpoint_deployment_lambda.handler",
             timeout=900,  # 15 minutes timeout for endpoint deployment
             memory_size=512,
@@ -344,8 +348,8 @@ class NavigationModelDeploymentPipeline:
         # Lambda function for configuring endpoint autoscaling
         autoscaling_lambda = Lambda(
             function_name="setup-navigation-endpoint-autoscaling",
-            execution_role_arn=execution_role,
-            script="backend/functions/setup/setup_navigation_endpoint_autoscaling/src/endpoint_autoscaling_lambda.py",
+            execution_role_arn=lambda_execution_role,
+            script=f"{shared_variables.BACKEND_DIR}/functions/setup/setup_navigation_endpoint_autoscaling/src/endpoint_autoscaling_lambda.py",
             handler="lambda.handler",
             timeout=300,  # 5 minutes timeout
             memory_size=256,
