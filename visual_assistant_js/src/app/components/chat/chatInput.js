@@ -45,7 +45,7 @@ export default function ChatInput({
     if ((!value || value.trim().length === 0) && files.length === 0) {
       return;
     }
-    
+
     if (disabled) {
       return;
     }
@@ -64,7 +64,7 @@ export default function ChatInput({
 
     // Create message content
     const content = {};
-    
+
     // Only add text if it's not empty
     if (value && value.trim().length > 0) {
       content.text = value.trim();
@@ -77,6 +77,17 @@ export default function ChatInput({
       content.image = {
         url: imageFiles[0].url,
         file: imageFiles[0].file,
+      };
+    }
+
+    // Add audio content if there are audio files
+    const audioFiles = processedFiles.filter(f => f.type.startsWith('audio/'));
+    if (audioFiles.length > 0) {
+      // For now, just show the first audio file
+      content.audio = {
+        url: audioFiles[0].url,
+        file: audioFiles[0].file,
+        duration: null, // Duration will be determined when the audio loads
       };
     }
 
@@ -118,26 +129,70 @@ export default function ChatInput({
         secondaryActions={
           <Box padding={{ left: 'xxs', top: 'xs' }}>
             <FileInput
-              ariaLabel="Chat demo file input"
+              ariaLabel="Upload images (JPEG, PNG) or audio files (MP3, WAV, M4A)"
               variant="icon"
               multiple={true}
               value={files}
-              onChange={({ detail }) => setFiles(prev => [...prev, ...detail.value])}
+              accept=".jpg,.jpeg,.png,.mp3,.wav,.m4a"
+              onChange={({ detail }) => {
+                // Filter files to only allow JPEG, PNG, MP3, WAV, M4A
+                const allowedFiles = detail.value.filter(file => {
+                  const type = file.type.toLowerCase();
+                  const name = file.name.toLowerCase();
+
+                  return type === 'image/jpeg' ||
+                    type === 'image/png' ||
+                    type === 'audio/mpeg' ||
+                    type === 'audio/mp3' ||
+                    type === 'audio/wav' ||
+                    type === 'audio/m4a' ||
+                    name.match(/\.(jpg|jpeg|png|mp3|wav|m4a)$/);
+                });
+
+                if (allowedFiles.length !== detail.value.length) {
+                  console.warn('Some files were filtered out. Only JPEG, PNG, MP3, WAV, and M4A files are allowed.');
+                }
+
+                setFiles(prev => [...prev, ...allowedFiles]);
+              }}
             />
           </Box>
         }
         secondaryContent={
           areFilesDragging ? (
-            <FileDropzone onChange={({ detail }) => setFiles(prev => [...prev, ...detail.value])}>
+            <FileDropzone
+              accept=".jpg,.jpeg,.png,.mp3,.wav,.m4a"
+              onChange={({ detail }) => {
+                // Filter files to only allow JPEG, PNG, MP3, WAV, M4A
+                const allowedFiles = detail.value.filter(file => {
+                  const type = file.type.toLowerCase();
+                  const name = file.name.toLowerCase();
+
+                  return type === 'image/jpeg' ||
+                    type === 'image/png' ||
+                    type === 'audio/mpeg' ||
+                    type === 'audio/mp3' ||
+                    type === 'audio/wav' ||
+                    type === 'audio/m4a' ||
+                    name.match(/\.(jpg|jpeg|png|mp3|wav|m4a)$/);
+                });
+
+                if (allowedFiles.length !== detail.value.length) {
+                  console.warn('Some files were filtered out. Only JPEG, PNG, MP3, WAV, and M4A files are allowed.');
+                }
+
+                setFiles(prev => [...prev, ...allowedFiles]);
+              }}
+            >
               <SpaceBetween size="xs" alignItems="center">
                 <Icon name="upload" />
-                <Box>Drop files here</Box>
+                <Box>Drop JPEG, PNG, MP3, WAV, or M4A files here</Box>
               </SpaceBetween>
             </FileDropzone>
           ) : (
             files.length > 0 && (
               <FileTokenGroup
-                items={files.map((file, index) => ({ 
+                items={files.map((file, index) => ({
                   file,
                   key: `input-file-${index}-${file.name}`
                 }))}

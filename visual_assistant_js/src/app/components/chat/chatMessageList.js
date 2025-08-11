@@ -128,24 +128,29 @@ function ChatMessage({ message, onRetry }) {
 
         {/* Files if any */}
         {content.files && content.files.length > 0 && (
-          <FileTokenGroup
-            readOnly
-            items={content.files.map((fileData, index) => ({
-              file: fileData.file || fileData,
-              key: `file-${index}-${fileData.name || 'unknown'}`
-            }))}
-            limit={3}
-            onDismiss={() => {/* read only */ }}
-            alignment="horizontal"
-            showFileThumbnail={false} // Disable thumbnails to avoid empty src issues
-            i18nStrings={{
-              removeFileAriaLabel: index => `Remove file ${index + 1}`,
-              limitShowFewer: 'Show fewer files',
-              limitShowMore: 'Show more files',
-              errorIconAriaLabel: 'Error',
-              warningIconAriaLabel: 'Warning',
-            }}
-          />
+          <Box>
+            <Box variant="small" color="text-body-secondary" padding={{ bottom: 'xs' }}>
+              Attached files:
+            </Box>
+            <FileTokenGroup
+              readOnly
+              items={content.files.map((fileData, index) => ({
+                file: fileData.file || fileData,
+                key: `file-${index}-${fileData.name || 'unknown'}`
+              }))}
+              limit={3}
+              onDismiss={() => {/* read only */ }}
+              alignment="horizontal"
+              showFileThumbnail={false} // Disable thumbnails to avoid empty src issues
+              i18nStrings={{
+                removeFileAriaLabel: index => `Remove file ${index + 1}`,
+                limitShowFewer: 'Show fewer files',
+                limitShowMore: 'Show more files',
+                errorIconAriaLabel: 'Error',
+                warningIconAriaLabel: 'Warning',
+              }}
+            />
+          </Box>
         )}
       </SpaceBetween>
     );
