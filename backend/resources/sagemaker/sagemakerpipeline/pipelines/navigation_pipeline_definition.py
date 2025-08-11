@@ -10,7 +10,7 @@ from sagemaker.workflow.functions import Join
 from sagemaker.workflow.parameters import ParameterString, ParameterInteger, ParameterFloat
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.step_collections import RegisterModel
-from sagemaker.workflow.steps import ProcessingStep, TrainingStep
+from sagemaker.workflow.steps import ProcessingStep, TrainingStep, CacheConfig
 from sagemaker.workflow.lambda_step import LambdaStep
 from sagemaker.lambda_helper import Lambda
 
@@ -41,7 +41,8 @@ class NavigationModelTrainingPipeline:
         script_path,
         sagemaker_session,
         default_approval_status="PendingManualApproval",
-        default_hf_token_secret_name="huggingface-token"
+        default_hf_token_secret_name="huggingface-token",
+        enable_step_cache=True,
     ):
 
         # Pipeline parameters
@@ -73,7 +74,7 @@ class NavigationModelTrainingPipeline:
         
         validation_instance_type = ParameterString(
             name="ValidationInstanceType",
-            default_value="ml.g5.xlarge"  # GPU instance for model validation
+            default_value="ml.g6.xlarge"  # GPU instance for model validation
         )
 
         # PyTorch versions for training and endpoint deployment must match
@@ -93,7 +94,7 @@ class NavigationModelTrainingPipeline:
         # Step 1: Model Preparation using PyTorch Training Job
         pytorch_estimator = PyTorch(
             entry_point="train.py",
-            source_dir=f"{script_path}/src",
+            source_dir=f"{script_path}",
             role=execution_role,
             instance_type=training_instance_type,
             instance_count=1,
@@ -110,11 +111,16 @@ class NavigationModelTrainingPipeline:
             distribution=None,
         )
 
+        cache_config = None
+        if enable_step_cache:
+            cache_config = CacheConfig(enable_caching=True, expire_after="1d")
+
         training_step = TrainingStep(
             name="PrepareNavigationModel",
             display_name="Prepare Navigation Model",
             description="Download and prepare the Gemma3n navigation model using PyTorch training job",
             estimator=pytorch_estimator,
+            cache_config=cache_config,
         )
 
         # Model artifacts S3 URI from training step
@@ -166,6 +172,7 @@ class NavigationModelTrainingPipeline:
             description="Validate the prepared navigation model with test inference",
             step_args=step_args,
             depends_on=[training_step],
+            cache_config=cache_config,
         )
 
         # Step 3: Model Registration
@@ -178,7 +185,7 @@ class NavigationModelTrainingPipeline:
             model_data=model_artifact_s3_uri,
             content_types=["application/json"],
             response_types=["application/json"],
-            inference_instances=["ml.g5.xlarge", "ml.g5.2xlarge"],
+            inference_instances=["ml.g6.xlarge", "ml.g6.2xlarge"],
             model_package_group_name=package_group_name,
             approval_status=approval_status,
             depends_on=[validation_step],
@@ -293,7 +300,7 @@ class NavigationModelDeploymentPipeline:
         # Instance configuration for deployment
         instance_type = ParameterString(
             name="InstanceType",
-            default_value="ml.g5.xlarge"  # GPU instance suitable for Gemma3n model
+            default_value="ml.g6.xlarge"  # GPU instance suitable for Gemma3n model
         )
 
         initial_instance_count = ParameterInteger(

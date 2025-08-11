@@ -134,7 +134,7 @@ pipeline_session = PipelineSession(boto_session=boto_session, sagemaker_client=s
 #     package_group_name_p=SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME,
 #     execution_role=EXECUTION_ROLE,
 #     region=REGION,
-#     script_path="./resources/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
 #     script_name="depth_script.py",
 #     sagemaker_session=sagemaker_session,
 # ).get_pipeline()
@@ -166,7 +166,7 @@ pipeline_session = PipelineSession(boto_session=boto_session, sagemaker_client=s
 #     package_group_name_p=SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME,
 #     execution_role=EXECUTION_ROLE,
 #     region=REGION,
-#     script_path="./resources/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
 #     script_name="ic_script.py",
 #     sagemaker_session=sagemaker_session,
 # ).get_pipeline()
@@ -200,7 +200,7 @@ pipeline_session = PipelineSession(boto_session=boto_session, sagemaker_client=s
 #     package_group_name_p=SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
 #     execution_role=EXECUTION_ROLE,
 #     region=REGION,
-#     script_path="./resources/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
 #     script_name="od_script.py",
 #     sagemaker_session=sagemaker_session,
 # ).get_pipeline()
@@ -235,7 +235,7 @@ pipeline_session = PipelineSession(boto_session=boto_session, sagemaker_client=s
 #     package_group_name_p=SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME,
 #     execution_role=EXECUTION_ROLE,
 #     region=REGION,
-#     script_path="./resources/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
 #     script_name="tts_script.py",
 #     sagemaker_session=sagemaker_session,
 # ).get_pipeline()
@@ -266,7 +266,7 @@ pipeline_session = PipelineSession(boto_session=boto_session, sagemaker_client=s
 #     package_group_name_p=SAGEMAKER_VOCODER_MODEL_PACKAGE_GROUP_NAME,
 #     execution_role=EXECUTION_ROLE,
 #     region=REGION,
-#     script_path="./resources/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
 #     script_name="vocoder_script.py",
 #     sagemaker_session=sagemaker_session,
 # ).get_pipeline()
@@ -324,7 +324,7 @@ navigation_preparation_pipeline = NavigationModelTrainingPipeline(
     execution_role=EXECUTION_ROLE,
     lambda_execution_role=LAMBDA_EXECUTION_ROLE,
     region=REGION,
-    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/navigation/script",
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/navigation/script/src",
     sagemaker_session=sagemaker_session,
     default_hf_token_secret_name=HF_TOKEN_SECRET_NAME
 ).get_pipeline()
