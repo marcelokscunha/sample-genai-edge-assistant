@@ -17,26 +17,26 @@ export const useMetaStore = create((set) => ({
   ...initialState,
 
   setConfigPanelOpen: (open) => set({ configPanelOpen: open }),
-  
+
   // Keep existing setNavigationModeActivated for backward compatibility
   setNavigationModeActivated: (activated) => {
     const newMode = activated ? 'navigation' : 'playground';
-    set({ 
+    set({
       navigationModeActivated: activated,
-      currentMode: newMode
+      currentMode: newMode,
     });
   },
-  
+
   // New setCurrentMode action with backward compatibility
   // Supports three modes: 'playground', 'navigation', 'chat'
   setCurrentMode: (mode) => {
     const navigationModeActivated = mode === 'navigation';
-    set({ 
+    set({
       currentMode: mode,
-      navigationModeActivated: navigationModeActivated
+      navigationModeActivated: navigationModeActivated,
     });
   },
-  
+
   setAlertThreshold: (alertThreshold) => set({ alertThreshold }),
   setQuality: (quality) => set({ quality }),
   setVoiceControlEnabled: (enabled) => set({ voiceControlEnabled: enabled }),

@@ -24,13 +24,13 @@ export default function Home() {
   // Three-way mode rendering function
   const renderCurrentMode = () => {
     switch (currentMode) {
-      case 'navigation':
-        return <NavigationMode />;
-      case 'chat':
-        return <ChatMode />;
-      case 'playground':
-      default:
-        return <PlaygroundMode />;
+    case 'navigation':
+      return <NavigationMode />;
+    case 'chat':
+      return <ChatMode />;
+    case 'playground':
+    default:
+      return <PlaygroundMode />;
     }
   };
 

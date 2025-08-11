@@ -71,7 +71,7 @@ describe('ChatStore', () => {
 
       useChatStore.getState().updateMessage(message.id, {
         status: 'sent',
-        content: { text: 'Updated text' }
+        content: { text: 'Updated text' },
       });
 
       const store = useChatStore.getState();

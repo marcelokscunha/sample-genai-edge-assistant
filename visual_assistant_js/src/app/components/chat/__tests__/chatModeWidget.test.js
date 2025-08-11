@@ -7,7 +7,7 @@ import ChatMode from '../chatModeWidget';
 describe('ChatMode', () => {
   test('renders chat mode placeholder correctly', () => {
     render(<ChatMode />);
-    
+
     expect(screen.getByText('Chat Mode')).toBeInTheDocument();
     expect(screen.getByText(/Chat Mode is coming soon/)).toBeInTheDocument();
     expect(screen.getByText(/Text message input and display/)).toBeInTheDocument();

@@ -35,9 +35,7 @@ const ConfigurationPanel = () => {
   const setVoiceControlEnabled = useMetaStore(
     (state) => state.setVoiceControlEnabled,
   );
-  const navigationModeActivated = useMetaStore(
-    (state) => state.navigationModeActivated,
-  );
+  const currentMode = useMetaStore((state) => state.currentMode);
   const workerKeys = Object.keys(WORKER_TO_MODEL_MAP);
 
   return (
@@ -91,7 +89,7 @@ const ConfigurationPanel = () => {
         <SpaceBetween size="xs">
           <Header
             variant="h3"
-            description="Voice control for switching mode. Say 'switch mode' to change from one mode to another. "
+            description="Voice control for switching modes. Say 'switch mode' to cycle through modes, or say 'switch to playground', 'switch to navigation', or 'switch to chat' for specific modes."
           >
             Voice control
           </Header>
@@ -106,7 +104,8 @@ const ConfigurationPanel = () => {
               <Box margin={{ top: 'xxs' }}>
                 <StatusIndicator type="success">
                   Active - Current mode:{' '}
-                  {navigationModeActivated ? 'Navigation' : 'Playground'}
+                  {currentMode === 'navigation' ? 'Navigation' :
+                    currentMode === 'chat' ? 'Chat' : 'Playground'}
                 </StatusIndicator>
               </Box>
             )}

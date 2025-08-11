@@ -6,21 +6,17 @@ import { useMetaStore } from 'src/app/stores/metaStore';
 export function useSpeechRecognition() {
   const recognition = useRef(null);
   const [isListening, setIsListening] = useState(false);
-  const currentModeRef = useRef(false);
+  const currentModeRef = useRef('playground');
 
   const voiceControlEnabled = useMetaStore(
     (state) => state.voiceControlEnabled,
   );
-  const navigationModeActivated = useMetaStore(
-    (state) => state.navigationModeActivated,
-  );
-  const setNavigationModeActivated = useMetaStore(
-    (state) => state.setNavigationModeActivated,
-  );
+  const currentMode = useMetaStore((state) => state.currentMode);
+  const setCurrentMode = useMetaStore((state) => state.setCurrentMode);
 
   useEffect(() => {
-    currentModeRef.current = navigationModeActivated;
-  }, [navigationModeActivated]);
+    currentModeRef.current = currentMode;
+  }, [currentMode]);
 
   useEffect(() => {
     if (
@@ -40,19 +36,37 @@ export function useSpeechRecognition() {
       recognition.current.onresult = function (event) {
         const command =
           event.results[event.results.length - 1][0].transcript.toLowerCase();
-        if (
-          command.includes('switch mode') ||
-          command.includes('change mode')
-        ) {
-          const newMode = !currentModeRef.current;
-          setNavigationModeActivated(newMode);
+
+        let newMode = null;
+        let modeText = '';
+
+        // Handle specific mode commands
+        if (command.includes('switch to playground') || command.includes('playground mode')) {
+          newMode = 'playground';
+          modeText = 'playground mode';
+        } else if (command.includes('switch to navigation') || command.includes('navigation mode')) {
+          newMode = 'navigation';
+          modeText = 'navigation mode';
+        } else if (command.includes('switch to chat') || command.includes('chat mode')) {
+          newMode = 'chat';
+          modeText = 'chat mode';
+        } else if (command.includes('switch mode') || command.includes('change mode')) {
+          // Cycle through modes: playground -> navigation -> chat -> playground
+          const modes = ['playground', 'navigation', 'chat'];
+          const currentIndex = modes.indexOf(currentModeRef.current);
+          const nextIndex = (currentIndex + 1) % modes.length;
+          newMode = modes[nextIndex];
+          modeText = `${newMode} mode`;
+        }
+
+        if (newMode && newMode !== currentModeRef.current) {
+          setCurrentMode(newMode);
           currentModeRef.current = newMode;
 
           if ('vibrate' in navigator) {
             navigator.vibrate(200);
           }
 
-          const modeText = newMode ? 'navigation mode' : 'playground mode';
           const utterance = new SpeechSynthesisUtterance(
             `Switched to ${modeText}`,
           );
@@ -80,11 +94,9 @@ export function useSpeechRecognition() {
     if (voiceControlEnabled && recognition.current && !isListening) {
       recognition.current.start();
       setIsListening(true);
-      const modeText = navigationModeActivated
-        ? 'navigation mode'
-        : 'playground mode';
+      const modeText = `${currentMode} mode`;
       const initialUtterance = new SpeechSynthesisUtterance(
-        `Voice control enabled. Currently in ${modeText}. Say "switch mode" or "change mode" to toggle.`,
+        `Voice control enabled. Currently in ${modeText}. Say "switch to playground", "switch to navigation", "switch to chat", or "switch mode" to cycle through modes.`,
       );
       initialUtterance.lang = 'en-US';
       window.speechSynthesis.speak(initialUtterance);
@@ -97,7 +109,7 @@ export function useSpeechRecognition() {
       disabledUtterance.lang = 'en-US';
       window.speechSynthesis.speak(disabledUtterance);
     }
-  }, [voiceControlEnabled, navigationModeActivated, isListening]);
+  }, [voiceControlEnabled, currentMode, isListening, setCurrentMode]);
 
   return;
 }
