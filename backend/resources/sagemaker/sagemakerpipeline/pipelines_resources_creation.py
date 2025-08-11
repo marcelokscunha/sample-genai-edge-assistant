@@ -83,7 +83,7 @@ EXECUTION_ROLE = get_output_value(
 LAMBDA_EXECUTION_ROLE = get_output_value(
     outputs, shared_variables.CDK_OUT_EXPORT_SAGEMAKER_PIPELINE_LAMBDA_ROLE_ARN
 )
-DEFAULT_HF_TOKEN_SECRET_NAME = get_output_value(
+HF_TOKEN_SECRET_NAME = get_output_value(
     outputs, shared_variables.CDK_OUT_EXPORT_DEFAULT_HF_TOKEN_SECRET_NAME
 )
 
@@ -105,7 +105,7 @@ print(SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME)
 print(EXECUTION_ROLE)
 print(LAMBDA_EXECUTION_ROLE)
-print(DEFAULT_HF_TOKEN_SECRET_NAME)
+print(HF_TOKEN_SECRET_NAME)
 print("********\n\n")
 
 
@@ -326,7 +326,7 @@ navigation_preparation_pipeline = NavigationModelTrainingPipeline(
     region=REGION,
     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/navigation/script",
     sagemaker_session=sagemaker_session,
-    default_hf_token_secret_name=shared_variables.CDK_OUT_EXPORT_DEFAULT_HF_TOKEN_SECRET_NAME
+    default_hf_token_secret_name=HF_TOKEN_SECRET_NAME
 ).get_pipeline()
 
 pipeline_response = navigation_preparation_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])

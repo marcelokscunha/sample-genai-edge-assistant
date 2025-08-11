@@ -515,6 +515,17 @@ class MyStack(Stack):
         # Grant SageMaker execution role access to Hugging Face token secret
         hf_token_secret.grant_read(sagemaker_execution_role)
         
+        # Add explicit Secrets Manager permissions to ensure access
+        sagemaker_execution_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret",
+                ],
+                resources=[hf_token_secret.secret_arn],
+            )
+        )
+        
         # Output the secret name for user reference
         CfnOutput(
             self,
