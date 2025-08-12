@@ -18,6 +18,8 @@ import {
 } from '@cloudscape-design/components';
 import { useFilesDragging } from '@cloudscape-design/components/file-dropzone';
 import { processImageForBackend } from 'src/app/utils/imageProcessing';
+import { processAudioBlobForBackend } from 'src/app/utils/audioProcessing';
+import AudioRecorderPreview from './audioRecorderPreview';
 
 /**
  * File token group i18n strings
@@ -41,6 +43,7 @@ export default function ChatInput({
   const [prompt, setPrompt] = useState('');
   const [files, setFiles] = useState([]);
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [showAudioModal, setShowAudioModal] = useState(false);
   const promptInputRef = useRef(null);
   const videoRef = useRef(null);
   const { areFilesDragging } = useFilesDragging();
@@ -64,6 +67,25 @@ export default function ChatInput({
     };
   }, [showCameraModal]);
 
+  // Handle audio recording completion
+  const handleAudioRecorded = async (audioBlob, duration) => {
+    const audioFile = new File([audioBlob], `recording-${Date.now()}.webm`, { type: audioBlob.type });
+    // Store duration as a property on the file object
+    Object.defineProperty(audioFile, 'duration', {
+      value: duration,
+      writable: false,
+      enumerable: true,
+      configurable: false
+    });
+    setFiles(prev => [...prev, audioFile]);
+    setShowAudioModal(false);
+  };
+
+  // Handle audio recording cancel
+  const handleAudioCancel = () => {
+    setShowAudioModal(false);
+  };
+
   // Handle prompt send
   const onPromptSend = async ({ detail: { value } }) => {
     // Allow sending if there's either text or files
@@ -85,6 +107,7 @@ export default function ChatInput({
         name: file.name,
         type: file.type,
         size: file.size,
+        duration: file.duration || null, // Include duration from recorded audio
       };
 
       // For image files, process for backend
@@ -96,6 +119,17 @@ export default function ChatInput({
         } catch (error) {
           console.error('Failed to process image:', error);
           // Continue without backend data for now
+        }
+      }
+
+      // For audio files, process for backend
+      if (file.type.startsWith('audio/')) {
+        try {
+          const backendData = await processAudioBlobForBackend(file, file.duration);
+          processedFile.buffer = backendData.buffer;
+          processedFile.metadata = backendData.metadata;
+        } catch (error) {
+          console.error('Failed to process audio:', error);
         }
       }
 
@@ -129,7 +163,8 @@ export default function ChatInput({
         url: f.url,
         file: f.file,
         name: f.name,
-        duration: null, // Duration will be determined when the audio loads
+        duration: f.duration,
+        buffer: f.buffer,
       }));
     }
 
@@ -206,6 +241,14 @@ export default function ChatInput({
                 iconName="video-camera-on"
                 onClick={() => setShowCameraModal(true)}
                 ariaLabel="Capture image from camera"
+              />
+            </Box>
+            <Box padding={{ left: 'xs', top: 'xs' }}>
+              <Button
+                variant="icon"
+                iconName="microphone"
+                onClick={() => setShowAudioModal(true)}
+                ariaLabel="Record audio message"
               />
             </Box>
           </>
@@ -311,9 +354,22 @@ export default function ChatInput({
         </Box>
       </Modal>
 
+      {/* Audio Recording Modal */}
+      <Modal
+        visible={showAudioModal}
+        onDismiss={() => setShowAudioModal(false)}
+        header={<Header variant="h2">Record Audio Message</Header>}
+        size="medium"
+      >
+        <AudioRecorderPreview
+          onAudioConfirmed={handleAudioRecorded}
+          onCancel={handleAudioCancel}
+        />
+      </Modal>
+
       <Box color="text-body-secondary" margin={{ top: 'xs' }} fontSize="body-s">
-        Use of this service is subject to the{' '}
-        <Link href="#" external variant="primary" fontSize="inherit">
+        Use of this prototype is subject to the{' '}
+        <Link href="https://aws.amazon.com/ai/responsible-ai/policy/" external variant="primary" fontSize="inherit">
           AWS Responsible AI Policy
         </Link>
         .

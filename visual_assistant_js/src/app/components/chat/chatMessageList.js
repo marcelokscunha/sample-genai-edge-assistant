@@ -13,6 +13,7 @@ import {
   LiveRegion,
   Container,
 } from '@cloudscape-design/components';
+import ChatAudioPlayer from './chatAudioPlayer';
 
 /**
  * Create avatar component for chat messages using basic CloudScape components
@@ -140,22 +141,12 @@ function ChatMessage({ message, onRetry }) {
         {content.audios && content.audios.length > 0 && (
           <SpaceBetween direction="vertical" size="xs">
             {content.audios.map((audio, index) => (
-              <Box key={`audio-${index}`}>
-                <audio
-                  controls
-                  style={{ maxWidth: '300px' }}
-                  preload="metadata"
-                >
-                  <source src={audio.url} type="audio/wav" />
-                  <source src={audio.url} type="audio/mp3" />
-                  <source src={audio.url} type="audio/m4a" />
-                  Your browser does not support the audio element.
-                </audio>
-                <Box variant="small" color="text-body-secondary" padding={{ top: 'xxs' }}>
-                  {audio.name}
-                  {audio.duration && ` • Duration: ${Math.round(audio.duration)}s`}
-                </Box>
-              </Box>
+              <ChatAudioPlayer
+                key={`audio-${index}`}
+                audioUrl={audio.url}
+                duration={audio.duration}
+                name={audio.name}
+              />
             ))}
           </SpaceBetween>
         )}

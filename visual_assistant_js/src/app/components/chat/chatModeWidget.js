@@ -89,7 +89,7 @@ export default function ChatMode() {
         timestamp: new Date(),
         status: 'sent',
         metadata: {
-          model: 'welcome',
+          model: 'MODEL_PLACEHOLDER',
         },
       };
       addMessage(welcomeMessage);
