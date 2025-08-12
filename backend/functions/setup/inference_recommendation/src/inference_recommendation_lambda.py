@@ -58,7 +58,6 @@ def handler(event, context):
         'RoleArn': execution_role_arn,
         'InputConfig': {
             'ModelPackageVersionArn': model_package_arn,
-            'JobDurationInSeconds': 3600,  # 1 hour timeout
         },
         'OutputConfig': {
             'CompiledOutputConfig': {

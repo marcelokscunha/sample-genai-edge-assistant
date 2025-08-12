@@ -74,7 +74,7 @@ class NavigationModelTrainingPipeline:
             default_value="ml.m5.xlarge"  # Suitable for model preparation (no GPU needed). If training is ran, must change to GPU
         )
         
-        validation_instance_type = ParameterString(
+        inference_instance_type = ParameterString(
             name="ValidationInstanceType",
             default_value="ml.g6.xlarge"  # GPU instance for model validation
         )
@@ -134,7 +134,7 @@ class NavigationModelTrainingPipeline:
             framework_version=pytorch_version,
             py_version=py_version,
             role=execution_role,
-            instance_type=validation_instance_type,
+            instance_type=inference_instance_type,
             instance_count=1,
             base_job_name="navigation-model-validation",
             sagemaker_session=pipeline_session,
@@ -190,9 +190,20 @@ class NavigationModelTrainingPipeline:
             ],
         )
         
-        # Use the PyTorch estimator for model registration
+        # Ensure we use the same configuration as the validation step (GPU-enabled) - we only deploy what we tested
+        inference_estimator = PyTorch(
+            entry_point="dummy.py",  # Required but not used by RegisterModel
+            role=execution_role,
+            instance_type=inference_instance_type,
+            instance_count=1,
+            framework_version=pytorch_version,
+            py_version=py_version,
+            sagemaker_session=pipeline_session,
+        )
+        
+        # Use the inference estimator for model registration
         register_model_step = RegisterModel(
-            estimator=pytorch_estimator,
+            estimator=inference_estimator,
             name="RegisterNavigationModel",
             display_name="Register Navigation Model",
             description="Register the validated navigation model in SageMaker Model Registry",
@@ -215,8 +226,8 @@ class NavigationModelTrainingPipeline:
             execution_role_arn=lambda_execution_role,
             script=f"{shared_variables.BACKEND_DIR}/functions/setup/inference_recommendation/src/inference_recommendation_lambda.py",
             handler="inference_recommendation_lambda.handler",
-            timeout=900,  # 15 minutes timeout
-            memory_size=256,
+            timeout=300,  # 5 minutes timeout
+            memory_size=128,
         )
 
         # S3 URI for storing inference recommendation results
@@ -262,7 +273,7 @@ class NavigationModelTrainingPipeline:
             parameters=[
                 export_model_output_s3_uri,
                 training_instance_type,
-                validation_instance_type,
+                inference_instance_type,
                 package_group_name,
                 approval_status,
                 hf_token_secret_name,
