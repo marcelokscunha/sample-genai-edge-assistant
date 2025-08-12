@@ -111,8 +111,12 @@ export default function ChatMode() {
       updateMessage(messageId, { status: 'sent' });
     }, 200);
 
+    // Set loading state to show the loading bar
+    const { setLoading } = useChatStore.getState();
+    setLoading(true);
+
     // TODO: integrate with backend service to get AI response
-    // For now, just add a placeholder response
+    // For now, just add a placeholder response with loading simulation
     setTimeout(() => {
       const assistantMessage = {
         type: 'assistant',
@@ -127,7 +131,8 @@ export default function ChatMode() {
         },
       };
       addMessage(assistantMessage);
-    }, 1000);
+      setLoading(false); // Clear loading state
+    }, 500);
   };
 
   // Handle retrying failed messages

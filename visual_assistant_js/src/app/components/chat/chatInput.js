@@ -7,7 +7,6 @@ import {
   Box,
   SpaceBetween,
   PromptInput,
-  FileInput,
   FileTokenGroup,
   FileDropzone,
   Link,
@@ -15,6 +14,7 @@ import {
   Button,
   Modal,
   Header,
+  ButtonGroup,
 } from '@cloudscape-design/components';
 import { useFilesDragging } from '@cloudscape-design/components/file-dropzone';
 import { processImageForBackend } from 'src/app/utils/imageProcessing';
@@ -46,6 +46,7 @@ export default function ChatInput({
   const [showAudioModal, setShowAudioModal] = useState(false);
   const promptInputRef = useRef(null);
   const videoRef = useRef(null);
+  const fileInputRef = useRef(null);
   const { areFilesDragging } = useFilesDragging();
 
   // Initialize camera when modal opens
@@ -204,60 +205,91 @@ export default function ChatInput({
         actionButtonAriaLabel={disabled ? 'Send message button - suppressed' : 'Send message'}
         actionButtonIconName="send"
         ariaLabel={disabled ? 'Prompt input - suppressed' : 'Prompt input'}
+        ariaRequired
         placeholder={placeholder}
         autoFocus
         disableSecondaryActionsPaddings
+        spellcheck
         secondaryActions={
-          <>
-            <Box padding={{ left: 'xxs', top: 'xs' }}>
-              <FileInput
-                ariaLabel="Upload images (JPEG, PNG) or audio files (MP3, WAV, M4A)"
-                variant="icon"
-                multiple={true}
-                value={files}
-                accept=".jpg,.jpeg,.png,.mp3,.wav,.m4a"
-                onChange={({ detail }) => {
-                  // Filter files to only allow JPEG, PNG, MP3, WAV, M4A
-                  const allowedFiles = detail.value.filter(file => {
-                    const type = file.type.toLowerCase();
-                    const name = file.name.toLowerCase();
+          <Box padding={{ left: "xxs", top: "xs" }}>
+            <ButtonGroup
+              ariaLabel="Chat actions"
+              items={[
+                {
+                  type: "icon-button",
+                  id: "upload",
+                  iconName: "upload",
+                  text: "Upload files"
+                },
+                {
+                  type: "icon-button",
+                  id: "camera",
+                  iconName: "video-camera-on",
+                  text: "Take picture"
+                },
+                {
+                  type: "icon-button",
+                  id: "microphone",
+                  iconName: "microphone",
+                  text: "Record audio"
+                }
+              ]}
+              variant="icon"
+              onItemClick={({ detail }) => {
+                switch (detail.id) {
+                  case 'upload':
+                    // Trigger file input click using ref
+                    if (fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                    break;
+                  case 'camera':
+                    setShowCameraModal(true);
+                    break;
+                  case 'microphone':
+                    setShowAudioModal(true);
+                    break;
+                  default:
+                    break;
+                }
+              }}
+            />
+            {/* Hidden file input for upload functionality */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.png,.mp3,.wav,.m4a"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const selectedFiles = Array.from(e.target.files || []);
 
-                    return type === 'image/jpeg' ||
-                      type === 'image/png' ||
-                      type === 'audio/mpeg' ||
-                      type === 'audio/mp3' ||
-                      type === 'audio/wav' ||
-                      type === 'audio/m4a' ||
-                      name.match(/\.(jpg|jpeg|png|mp3|wav|m4a)$/);
-                  });
+                // Filter files to only allow JPEG, PNG, MP3, WAV, M4A
+                const allowedFiles = selectedFiles.filter(file => {
+                  const type = file.type.toLowerCase();
+                  const name = file.name.toLowerCase();
 
-                  if (allowedFiles.length !== detail.value.length) {
-                    console.warn('Some files were filtered out. Only JPEG, PNG, MP3, WAV, and M4A files are allowed.');
-                  }
+                  return type === 'image/jpeg' ||
+                    type === 'image/png' ||
+                    type === 'audio/mpeg' ||
+                    type === 'audio/mp3' ||
+                    type === 'audio/wav' ||
+                    type === 'audio/m4a' ||
+                    name.match(/\.(jpg|jpeg|png|mp3|wav|m4a)$/);
+                });
 
-                  setFiles(prev => [...prev, ...allowedFiles]);
-                  // Return focus to text input after file selection
-                  setTimeout(() => promptInputRef.current?.focus(), 100);
-                }}
-              />
-            </Box>
-            <Box padding={{ left: 'xs', top: 'xs' }}>
-              <Button
-                variant="icon"
-                iconName="video-camera-on"
-                onClick={() => setShowCameraModal(true)}
-                ariaLabel="Capture image from camera"
-              />
-            </Box>
-            <Box padding={{ left: 'xs', top: 'xs' }}>
-              <Button
-                variant="icon"
-                iconName="microphone"
-                onClick={() => setShowAudioModal(true)}
-                ariaLabel="Record audio message"
-              />
-            </Box>
-          </>
+                if (allowedFiles.length !== selectedFiles.length) {
+                  console.warn('Some files were filtered out. Only JPEG, PNG, MP3, WAV, and M4A files are allowed.');
+                }
+
+                setFiles(prev => [...prev, ...allowedFiles]);
+                // Clear the input value so the same file can be selected again
+                e.target.value = '';
+                // Return focus to text input after file selection
+                setTimeout(() => promptInputRef.current?.focus(), 100);
+              }}
+            />
+          </Box>
         }
         secondaryContent={
           areFilesDragging ? (

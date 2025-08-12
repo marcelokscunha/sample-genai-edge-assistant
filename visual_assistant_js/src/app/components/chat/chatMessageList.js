@@ -11,55 +11,14 @@ import {
   TextContent,
   FileTokenGroup,
   LiveRegion,
-  Container,
 } from '@cloudscape-design/components';
+import Avatar from '@cloudscape-design/chat-components/avatar';
+import ChatBubble from '@cloudscape-design/chat-components/chat-bubble';
+import LoadingBar from '@cloudscape-design/chat-components/loading-bar';
 import ChatAudioPlayer from './chatAudioPlayer';
 
 /**
- * Create avatar component for chat messages using basic CloudScape components
- */
-function ChatBubbleAvatar({ type, loading = false }) {
-  const avatarStyle = {
-    width: '32px',
-    height: '32px',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    flexShrink: 0,
-  };
-
-  if (type === 'assistant') {
-    return (
-      <Box
-        style={{
-          ...avatarStyle,
-          backgroundColor: '#0972d3',
-          color: 'white',
-        }}
-      >
-        {loading ? '⏳' : '🤖'}
-      </Box>
-    );
-  }
-
-  return (
-    <Box
-      style={{
-        ...avatarStyle,
-        backgroundColor: '#e9ebed',
-        color: '#414d5c',
-      }}
-    >
-      👤
-    </Box>
-  );
-}
-
-/**
- * Individual chat message component using basic CloudScape components
+ * Individual chat message component using Cloudscape Chat Components
  */
 function ChatMessage({ message, onRetry }) {
   const isUser = message.type === 'user';
@@ -67,7 +26,7 @@ function ChatMessage({ message, onRetry }) {
   const isRetrying = message.status === 'retry';
   const isSending = message.status === 'sending';
 
-  // Format timestamp
+  // Format timestamp for aria label
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString([], {
       hour: '2-digit',
@@ -75,9 +34,34 @@ function ChatMessage({ message, onRetry }) {
     });
   };
 
+  // Create avatar for the message
+  const avatar = isUser ? (
+    <Avatar
+      ariaLabel="You"
+      tooltipText="You"
+    />
+  ) : (
+    <Avatar
+      ariaLabel="Generative AI assistant"
+      color="gen-ai"
+      iconName="gen-ai"
+      tooltipText="Generative AI assistant"
+      initials={isSending || isRetrying ? '⏳' : undefined}
+    />
+  );
+
   // Render message content
   const renderContent = () => {
     const { content } = message;
+
+    // Show loading state for sending/retrying messages
+    if (isSending || isRetrying) {
+      return (
+        <Box color="text-status-inactive">
+          {isRetrying ? 'Retrying...' : 'Sending...'}
+        </Box>
+      );
+    }
 
     return (
       <SpaceBetween direction="vertical" size="xs">
@@ -197,107 +181,54 @@ function ChatMessage({ message, onRetry }) {
             />
           </Box>
         )}
+
+        {/* Error message */}
+        {hasError && message.error && (
+          <StatusIndicator type="error">
+            {message.error}
+          </StatusIndicator>
+        )}
+
+        {/* Actions */}
+        {hasError && (
+          <Box display="flex" justifyContent="flex-end">
+            <Button
+              variant="link"
+              iconName="refresh"
+              onClick={() => onRetry(message.id)}
+              ariaLabel={`Retry message ${message.id}`}
+            >
+              Retry
+            </Button>
+          </Box>
+        )}
+
+        {/* Metadata for assistant messages */}
+        {!isUser && message.metadata && (
+          <Box variant="small" color="text-body-secondary">
+            {message.metadata.processingTime && (
+              <span>Processing: {message.metadata.processingTime}ms</span>
+            )}
+            {message.metadata.tokens && (
+              <span> • Tokens: {message.metadata.tokens}</span>
+            )}
+            {message.metadata.model && (
+              <span> • Model: {message.metadata.model}</span>
+            )}
+          </Box>
+        )}
       </SpaceBetween>
     );
   };
-
-  // Chat bubble container style
-  const bubbleStyle = {
-    maxWidth: '80%',
-    marginBottom: '16px',
-    marginLeft: isUser ? 'auto' : '0',
-    marginRight: isUser ? '0' : 'auto',
-  };
-
-  // Show loading state for sending/retrying messages
-  if (isSending || isRetrying) {
-    return (
-      <Box style={bubbleStyle}>
-        <SpaceBetween direction="horizontal" size="s" alignItems="flex-start">
-          <ChatBubbleAvatar type={isUser ? 'user' : 'assistant'} loading={true} />
-          <Container
-            variant="stacked"
-            disableHeaderPaddings
-            disableContentPaddings
-          >
-            <Box padding="s">
-              <Box color="text-status-inactive">
-                {isRetrying ? 'Retrying...' : 'Sending...'}
-              </Box>
-            </Box>
-          </Container>
-        </SpaceBetween>
-      </Box>
-    );
-  }
 
   return (
-    <Box style={bubbleStyle}>
-      <SpaceBetween direction="horizontal" size="s" alignItems="flex-start">
-        {!isUser && <ChatBubbleAvatar type="assistant" />}
-
-        <Container
-          variant={isUser ? 'default' : 'stacked'}
-          disableHeaderPaddings
-          disableContentPaddings
-        >
-          <Box padding="s">
-            <SpaceBetween direction="vertical" size="xs">
-              {/* Message header */}
-              <Box display="flex" justifyContent="space-between" alignItems="center">
-                <TextContent>
-                  <small><strong>{isUser ? 'You' : 'AI Assistant'}</strong></small>
-                </TextContent>
-                <Box variant="small" color="text-body-secondary">
-                  {formatTime(message.timestamp)}
-                </Box>
-              </Box>
-
-              {/* Message content */}
-              {renderContent()}
-
-              {/* Error message */}
-              {hasError && message.error && (
-                <StatusIndicator type="error">
-                  {message.error}
-                </StatusIndicator>
-              )}
-
-              {/* Actions */}
-              {hasError && (
-                <Box display="flex" justifyContent="flex-end">
-                  <Button
-                    variant="link"
-                    iconName="refresh"
-                    onClick={() => onRetry(message.id)}
-                    ariaLabel={`Retry message ${message.id}`}
-                  >
-                    Retry
-                  </Button>
-                </Box>
-              )}
-
-              {/* Metadata for assistant messages */}
-              {!isUser && message.metadata && (
-                <Box variant="small" color="text-body-secondary">
-                  {message.metadata.processingTime && (
-                    <span>Processing: {message.metadata.processingTime}ms</span>
-                  )}
-                  {message.metadata.tokens && (
-                    <span> • Tokens: {message.metadata.tokens}</span>
-                  )}
-                  {message.metadata.model && (
-                    <span> • Model: {message.metadata.model}</span>
-                  )}
-                </Box>
-              )}
-            </SpaceBetween>
-          </Box>
-        </Container>
-
-        {isUser && <ChatBubbleAvatar type="user" />}
-      </SpaceBetween>
-    </Box>
+    <ChatBubble
+      ariaLabel={`${isUser ? 'You' : 'AI Assistant'} at ${formatTime(message.timestamp)}`}
+      type={isUser ? 'outgoing' : 'incoming'}
+      avatar={avatar}
+    >
+      {renderContent()}
+    </ChatBubble>
   );
 }
 
@@ -360,16 +291,15 @@ export default function ChatMessageList({ messages = [], isLoading = false, onRe
 
           {/* Loading indicator for new messages */}
           {isLoading && (
-            <Box style={{ maxWidth: '80%', marginBottom: '16px' }}>
-              <SpaceBetween direction="horizontal" size="s" alignItems="flex-start">
-                <ChatBubbleAvatar type="assistant" loading={true} />
-                <Container variant="stacked" disableHeaderPaddings disableContentPaddings>
-                  <Box padding="s">
-                    <Box color="text-status-inactive">Generating a response</Box>
-                  </Box>
-                </Container>
-              </SpaceBetween>
-            </Box>
+            <LiveRegion>
+              <Box
+                margin={{ bottom: "xs", left: "l" }}
+                color="text-body-secondary"
+              >
+                Generating a response
+              </Box>
+              <LoadingBar variant="gen-ai" />
+            </LiveRegion>
           )}
         </SpaceBetween>
       )}

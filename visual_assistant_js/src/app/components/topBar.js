@@ -32,7 +32,7 @@ const TopBar = () => {
         <Flex justifyContent="space-between" alignItems="center">
           {/* Left side: App Logo or Name */}
           <Heading level={6} color="white" margin="0">
-            AWS real-time visual assistant
+            AWS edge visual assistant
           </Heading>
 
           {/* Right side: User info and sign-out */}
