@@ -301,6 +301,7 @@ navigation_deployment_pipeline = NavigationModelDeploymentPipeline(
     lambda_execution_role=LAMBDA_EXECUTION_ROLE,
     region=REGION,
     sagemaker_session=sagemaker_session,
+    default_endpoint_name=shared_variables.NAVIGATION_ENDPOINT_NAME
 ).get_pipeline()
 
 pipeline_response = navigation_deployment_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])

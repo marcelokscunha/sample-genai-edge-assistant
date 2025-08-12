@@ -905,6 +905,7 @@ class MyStack(Stack):
                 "NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID": cognito_user_pool_client.user_pool_client_id,
                 "NEXT_PUBLIC_COGNITO_USER_POOL_ID": cognito_user_pool.user_pool_id,
                 "NEXT_PUBLIC_API_GATEWAY_ENDPOINT": apigw_construct.get_url(),
+                "NEXT_PUBLIC_CHAT_ENDPOINT_NAME": shared_variables.CHAT_ENDPOINT_NAME,
                 "NEXT_PUBLIC_DEBUG_AUDIO": "true",
                 "NEXT_PUBLIC_DEBUG_DEPTH": "true",
                 "NEXT_PUBLIC_DEBUG_DETECTION": "true",

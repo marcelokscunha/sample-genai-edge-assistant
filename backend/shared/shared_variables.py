@@ -136,3 +136,7 @@ BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME = f"{STACK_NAME}-navigation-deployment
 LAMBDA_NAVIGATION_INFERENCE_RECOMMENDATION = f"{STACK_NAME}-navigation-inference-recommendation"
 LAMBDA_DEPLOY_NAVIGATION_ENDPOINT = f"{STACK_NAME}-deploy-navigation-endpoint"
 LAMBDA_SETUP_NAVIGATION_ENDPOINT_AUTOSCALING = f"{STACK_NAME}-setup-navigation-endpoint-autoscaling"
+
+# Endpoint names
+CHAT_ENDPOINT_NAME = f"{STACK_NAME}-navigation-endpoint"  # TODO: for now both chat and navigation use the same llm deployed in an SM endpoint
+NAVIGATION_ENDPOINT_NAME = f"{STACK_NAME}-navigation-endpoint"

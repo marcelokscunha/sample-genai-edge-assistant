@@ -313,6 +313,7 @@ class NavigationModelDeploymentPipeline:
         lambda_execution_role,
         region,
         sagemaker_session,
+        default_endpoint_name="vis-assis-navigation-endpoint"
     ):
 
         # Pipeline parameters - model package ARN provided by EventBridge trigger
@@ -323,7 +324,7 @@ class NavigationModelDeploymentPipeline:
 
         endpoint_name = ParameterString(
             name="EndpointName",
-            default_value="vis-assis-navigation-endpoint"
+            default_value=default_endpoint_name
         )
 
         # Instance configuration for deployment
@@ -386,7 +387,7 @@ class NavigationModelDeploymentPipeline:
             function_name=shared_variables.LAMBDA_SETUP_NAVIGATION_ENDPOINT_AUTOSCALING,
             execution_role_arn=lambda_execution_role,
             script=f"{shared_variables.BACKEND_DIR}/functions/setup/setup_navigation_endpoint_autoscaling/src/endpoint_autoscaling_lambda.py",
-            handler="lambda.handler",
+            handler="endpoint_autoscaling_lambda.handler",
             timeout=300,  # 5 minutes timeout
             memory_size=256,
         )
