@@ -13,47 +13,38 @@ import {
   Alert,
   Spinner,
   Button,
+  ButtonDropdown,
 } from '@cloudscape-design/components';
 import { getCurrentUser } from 'aws-amplify/auth';
-import ConfigurationPanel from 'src/app/components/playground/configurationPanel';
-import CustomHelpPanel from 'src/app/components/playground/helpPanel';
-import { useMetaStore } from 'src/app/stores/metaStore';
-import { useChatStore } from 'src/app/stores/chatStore';
-import TopBar from 'src/app/components/topBar';
+import ConfigurationPanel from '../playground/configurationPanel';
+import CustomHelpPanel from '../playground/helpPanel';
+import { useMetaStore } from '../../stores/metaStore';
+import { useChatStore } from '../../stores/chatStore';
+import { useModelSelectionStore } from '../../stores/modelSelectionStore';
+import { ChatServiceFactory } from '../../services/chatServiceFactory';
+import TopBar from '../topBar';
 import ChatMessageList from './chatMessageList';
 import ChatInput from './chatInput';
-
 
 /**
  * ChatMode component - Main container for the chat interface
  * Provides authentication checks, error boundaries, and layout structure
  */
 export default function ChatMode() {
-  // Panel state management
   const configPanelOpen = useMetaStore((state) => state.configPanelOpen);
   const setConfigPanelOpen = useMetaStore((state) => state.setConfigPanelOpen);
   const [toolsOpen, setToolsOpen] = useState(false);
-
-  // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
 
-  // Chat state
-  const {
-    messages,
-    error: chatError,
-    isLoading: chatLoading,
-    clearChat,
-    addMessage,
-    retryMessage,
-    hasMessages,
-  } = useChatStore();
+  const [useStreaming, setUseStreaming] = useState(false);
 
-  // Ref for scrolling to latest messages
+  const { messages, error: chatError, isLoading: chatLoading, clearChat, addMessage, hasMessages } = useChatStore();
+  const { currentModel, availableModels, setCurrentModel } = useModelSelectionStore();
+  
   const messagesContainerRef = useRef(null);
 
-  // Check authentication status on mount
   useEffect(() => {
     const checkAuthentication = async () => {
       try {
@@ -69,82 +60,46 @@ export default function ChatMode() {
         setIsCheckingAuth(false);
       }
     };
-
     checkAuthentication();
   }, []);
 
-  // Error boundary for chat errors
-  const handleClearError = () => {
-    setAuthError(null);
-  };
 
-  // Initialize with welcome message if no messages exist
-  useEffect(() => {
-    if (isAuthenticated && messages.length === 0) {
-      const welcomeMessage = {
-        type: 'assistant',
-        content: {
-          text: 'Hello! I\'m your AI assistant. I can help you with questions, analyze images, and process audio. What would you like to know?',
-        },
-        timestamp: new Date(),
-        status: 'sent',
-        metadata: {
-          model: 'MODEL_PLACEHOLDER',
-        },
-      };
-      addMessage(welcomeMessage);
-    }
-  }, [isAuthenticated, messages.length, addMessage]);
 
-  // Handle sending messages
-  const handleSendMessage = (message) => {
-    // Generate ID for the message
+  const handleSendMessage = async (message) => {
     const messageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-
-    // Add message to store with 'sending' status and ID
     const userMessage = { ...message, id: messageId, status: 'sending' };
     addMessage(userMessage);
 
-    // Update user message to 'sent' after a short delay
-    setTimeout(() => {
+    try {
+      // Create service based on current model
+      const service = ChatServiceFactory.createService(currentModel);
+      const response = await service.sendMessage(message, useStreaming);
+      addMessage(response);
+      
+      // Update user message to sent
       const { updateMessage } = useChatStore.getState();
       updateMessage(messageId, { status: 'sent' });
-    }, 200);
-
-    // Set loading state to show the loading bar
-    const { setLoading } = useChatStore.getState();
-    setLoading(true);
-
-    // TODO: integrate with backend service to get AI response
-    // For now, just add a placeholder response with loading simulation
-    setTimeout(() => {
-      const assistantMessage = {
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      
+      // Update user message to error state
+      const { updateMessage } = useChatStore.getState();
+      updateMessage(messageId, { 
+        status: 'error', 
+        error: error.message 
+      });
+      
+      // Add error message
+      addMessage({
         type: 'assistant',
-        content: {
-          text: 'This is a placeholder response.',
-        },
+        content: { text: `Error: ${error.message}` },
         timestamp: new Date(),
-        status: 'sent',
-        metadata: {
-          model: 'placeholder',
-          processingTime: 500,
-        },
-      };
-      addMessage(assistantMessage);
-      setLoading(false); // Clear loading state
-    }, 500);
+        status: 'error',
+      });
+    }
   };
 
-  // Handle retrying failed messages
-  const handleRetryMessage = (messageId) => {
-    retryMessage(messageId);
-    // TODO: In task 8, implement actual retry logic with SageMaker
-  };
 
-  // Handle clearing chat
-  const handleClearChat = () => {
-    clearChat();
-  };
 
   // Loading state during authentication check
   if (isCheckingAuth) {
@@ -217,7 +172,7 @@ export default function ChatMode() {
                   type="error"
                   header="Authentication Required"
                   dismissible
-                  onDismiss={handleClearError}
+                  onDismiss={() => setAuthError(null)}
                 >
                   {authError || 'You must be signed in to access Chat Mode. Please authenticate and try again.'}
                 </Alert>
@@ -234,10 +189,8 @@ export default function ChatMode() {
     );
   }
 
-  // Main chat interface content
   const content = (
     <SpaceBetween direction="vertical" size="l">
-      {/* Global error display */}
       {chatError && (
         <Alert
           type="error"
@@ -249,7 +202,6 @@ export default function ChatMode() {
         </Alert>
       )}
 
-      {/* Chat container */}
       <Container
         header={
           <Header
@@ -257,13 +209,25 @@ export default function ChatMode() {
             description="Interact with AI using text, images, and audio"
             actions={
               <SpaceBetween direction="horizontal" size="xs">
+                <ButtonDropdown
+                  items={availableModels.map(m => ({ id: m.id, text: m.name }))}
+                  onItemClick={({ detail }) => {
+                    const model = availableModels.find(m => m.id === detail.id);
+                    setCurrentModel(model);
+                  }}
+                >
+                  {currentModel?.name || 'Select Model'}
+                </ButtonDropdown>
+
+                <Button 
+                  variant={useStreaming ? 'primary' : 'normal'}
+                  onClick={() => setUseStreaming(!useStreaming)}
+                >
+                  {useStreaming ? 'Streaming ON' : 'Streaming OFF'}
+                </Button>
+
                 {hasMessages() && (
-                  <Button
-                    variant="normal"
-                    iconName="refresh"
-                    onClick={handleClearChat}
-                    ariaLabel="Clear chat"
-                  >
+                  <Button variant="normal" iconName="refresh" onClick={clearChat}>
                     New conversation
                   </Button>
                 )}
@@ -291,7 +255,7 @@ export default function ChatMode() {
             <ChatMessageList
               messages={messages}
               isLoading={chatLoading}
-              onRetry={handleRetryMessage}
+              onRetry={() => {}}
               messagesContainerRef={messagesContainerRef}
             />
           </div>
@@ -304,6 +268,8 @@ export default function ChatMode() {
           />
         </SpaceBetween>
       </Container>
+
+
     </SpaceBetween>
   );
 
