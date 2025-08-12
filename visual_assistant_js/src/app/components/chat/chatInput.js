@@ -79,11 +79,15 @@ export default function ChatInput({
     });
     setFiles(prev => [...prev, audioFile]);
     setShowAudioModal(false);
+    // Return focus to text input after audio recording
+    setTimeout(() => promptInputRef.current?.focus(), 100);
   };
 
   // Handle audio recording cancel
   const handleAudioCancel = () => {
     setShowAudioModal(false);
+    // Return focus to text input after canceling audio recording
+    setTimeout(() => promptInputRef.current?.focus(), 100);
   };
 
   // Handle prompt send
@@ -232,6 +236,8 @@ export default function ChatInput({
                   }
 
                   setFiles(prev => [...prev, ...allowedFiles]);
+                  // Return focus to text input after file selection
+                  setTimeout(() => promptInputRef.current?.focus(), 100);
                 }}
               />
             </Box>
@@ -277,6 +283,8 @@ export default function ChatInput({
                 }
 
                 setFiles(prev => [...prev, ...allowedFiles]);
+                // Return focus to text input after drag & drop
+                setTimeout(() => promptInputRef.current?.focus(), 100);
               }}
             >
               <SpaceBetween size="xs" alignItems="center">
@@ -336,6 +344,8 @@ export default function ChatInput({
                   });
                 }
                 setShowCameraModal(false);
+                // Return focus to text input after camera capture
+                setTimeout(() => promptInputRef.current?.focus(), 100);
               }}>
                 Capture
               </Button>
