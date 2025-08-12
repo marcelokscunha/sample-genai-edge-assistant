@@ -131,3 +131,8 @@ BOTO3_TTS_PIPELINE_NAME = f"{STACK_NAME}-tts-pipeline"
 BOTO3_VOCODER_PIPELINE_NAME = f"{STACK_NAME}-vocoder-pipeline"
 BOTO3_NAVIGATION_PREPARATION_PIPELINE_NAME = f"{STACK_NAME}-navigation-training-pipeline"
 BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME = f"{STACK_NAME}-navigation-deployment-pipeline"
+
+# SageMaker Pipeline Lambda Function Names
+LAMBDA_NAVIGATION_INFERENCE_RECOMMENDATION = f"{STACK_NAME}-navigation-inference-recommendation"
+LAMBDA_DEPLOY_NAVIGATION_ENDPOINT = f"{STACK_NAME}-deploy-navigation-endpoint"
+LAMBDA_SETUP_NAVIGATION_ENDPOINT_AUTOSCALING = f"{STACK_NAME}-setup-navigation-endpoint-autoscaling"

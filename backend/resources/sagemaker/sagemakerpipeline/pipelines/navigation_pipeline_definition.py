@@ -44,6 +44,8 @@ class NavigationModelTrainingPipeline:
         default_hf_token_secret_name="huggingface-token",
         enable_step_cache=True,
     ):
+        # Constants for sample payload
+        SAMPLE_PAYLOAD_FILENAME = "navigation_sample_payload.tar.gz"
 
         # Pipeline parameters
         export_model_output_s3_uri = ParameterString(
@@ -136,6 +138,9 @@ class NavigationModelTrainingPipeline:
             instance_count=1,
             base_job_name="navigation-model-validation",
             sagemaker_session=pipeline_session,
+            env={
+                "SAMPLE_PAYLOAD_FILENAME": SAMPLE_PAYLOAD_FILENAME
+            },
         )
 
         validation_output_s3_uri = Join(
@@ -176,6 +181,15 @@ class NavigationModelTrainingPipeline:
         )
 
         # Step 3: Model Registration
+        # Sample payload S3 URI from validation step
+        sample_payload_s3_uri = Join(
+            on="/",
+            values=[
+                validation_output_s3_uri,
+                SAMPLE_PAYLOAD_FILENAME
+            ],
+        )
+        
         # Use the PyTorch estimator for model registration
         register_model_step = RegisterModel(
             estimator=pytorch_estimator,
@@ -188,13 +202,16 @@ class NavigationModelTrainingPipeline:
             inference_instances=["ml.g6.xlarge", "ml.g6.2xlarge"],
             model_package_group_name=package_group_name,
             approval_status=approval_status,
+            sample_payload_url=sample_payload_s3_uri,
+            domain="COMPUTER_VISION",
+            task="TEXT_GENERATION",
             depends_on=[validation_step],
         )
 
         # Step 4: Inference Recommendation (Optional/Non-blocking)
         # Lambda function for creating inference recommendation job
         inference_recommendation_lambda = Lambda(
-            function_name="navigation-inference-recommendation",
+            function_name=shared_variables.LAMBDA_NAVIGATION_INFERENCE_RECOMMENDATION,
             execution_role_arn=lambda_execution_role,
             script=f"{shared_variables.BACKEND_DIR}/functions/setup/inference_recommendation/src/inference_recommendation_lambda.py",
             handler="inference_recommendation_lambda.handler",
@@ -233,7 +250,8 @@ class NavigationModelTrainingPipeline:
                         "inference-recommendations",
                         ExecutionVariables.PIPELINE_EXECUTION_ID
                     ]
-                )
+                ),
+                "execution_role_arn": execution_role
             },
             depends_on=[register_model_step],
         )
@@ -328,7 +346,7 @@ class NavigationModelDeploymentPipeline:
         # Lambda function for deploying the endpoint from model package
         # TODO: replace by built-in Step for endpoint deployment when SageMaker SDK supports it
         deploy_lambda = Lambda(
-            function_name="deploy-navigation-endpoint",
+            function_name=shared_variables.LAMBDA_DEPLOY_NAVIGATION_ENDPOINT,
             execution_role_arn=lambda_execution_role,
             script=f"{shared_variables.BACKEND_DIR}/functions/setup/deploy_navigation_endpoint/src/endpoint_deployment_lambda.py",
             handler="endpoint_deployment_lambda.handler",
@@ -354,7 +372,7 @@ class NavigationModelDeploymentPipeline:
         # Step 2: Configure autoscaling using Lambda function
         # Lambda function for configuring endpoint autoscaling
         autoscaling_lambda = Lambda(
-            function_name="setup-navigation-endpoint-autoscaling",
+            function_name=shared_variables.LAMBDA_SETUP_NAVIGATION_ENDPOINT_AUTOSCALING,
             execution_role_arn=lambda_execution_role,
             script=f"{shared_variables.BACKEND_DIR}/functions/setup/setup_navigation_endpoint_autoscaling/src/endpoint_autoscaling_lambda.py",
             handler="lambda.handler",

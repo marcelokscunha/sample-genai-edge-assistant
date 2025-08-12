@@ -87,6 +87,53 @@ def validate_output_format(result):
     print("✓ Output format validation passed")
     return True
 
+def create_sample_payload(input_data):
+    """
+    Create a sample payload archive for SageMaker Inference Recommender.
+    This payload will be used during model registration to enable inference recommendations.
+    """
+    # Get output directory (SageMaker processing job or local)
+    output_dir = Path(os.environ.get("SM_PROCESSING_OUTPUT_DIR", "/opt/ml/processing/output"))
+    
+    # Get sample payload filename from environment variable (set by SageMaker pipeline)
+    sample_payload_filename = os.environ.get("SAMPLE_PAYLOAD_FILENAME", "navigation_sample_payload.tar.gz")
+    
+    # Create sample payload directory
+    payload_dir = output_dir / "sample-payload"
+    payload_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create sample input file
+    sample_input_file = payload_dir / "sample_input.json"
+    with open(sample_input_file, 'w') as f:
+        json.dump(input_data, f, indent=2)
+    
+    # Create the payload archive
+    payload_archive_path = output_dir / sample_payload_filename
+    
+    with tarfile.open(payload_archive_path, 'w:gz') as tar:
+        tar.add(sample_input_file, arcname="sample_input.json")
+    
+    print(f"Sample payload archive created at: {payload_archive_path}")
+    
+    # Also create a metadata file with payload information
+    payload_metadata = {
+        "payload_archive": sample_payload_filename,
+        "content_type": "application/json",
+        "sample_description": "Navigation model sample input with base64 image and navigation goal",
+        "input_format": {
+            "image": "base64 encoded image data URI",
+            "nav_goal": "string describing navigation target (e.g., 'sidewalk')"
+        }
+    }
+    
+    metadata_file = output_dir / "payload_metadata.json"
+    with open(metadata_file, 'w') as f:
+        json.dump(payload_metadata, f, indent=2)
+    
+    print(f"Payload metadata saved at: {metadata_file}")
+    return str(payload_archive_path)
+
+
 # Requirements:
 # - You have the local artifacts for the model (have ran 'python prepare_model_files.py')
 # - Make sure you've installed the dependencies in requirements.txt with 'pip install -r core/requirements.txt'
@@ -140,8 +187,6 @@ if __name__ == "__main__":
     print("FULL PIPELINE TEST RESULTS:")
     print("="*50)
     pprint(result_dict)
-    print("="*50)
-    print("✓ All tests passed! Full inference pipeline working correctly.")
     # {'response': 'The image shows a street scene with a sidewalk running along the '
     #             "right side of the frame. On the left side, there's a set of "
     #             'outdoor stairs leading up to a building with a black iron '
@@ -180,3 +225,10 @@ if __name__ == "__main__":
     #             '\n'
     #             '\n'
     #             '\n'}
+    print("="*50)
+    print("✓ All tests passed! Full inference pipeline working correctly.")
+    
+    # Step 7: Create sample payload for inference recommendations
+    print("7. Creating sample payload for inference recommendations...")
+    create_sample_payload(input_data)
+    print("✓ Sample payload created successfully")

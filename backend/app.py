@@ -6,6 +6,9 @@ from aws_cdk import App, Aspects, Environment
 import shared.shared_variables as shared_variables
 from resources.main import MyStack
 
+if not os.getenv("AWS_REGION"):
+    raise RuntimeError("AWS_REGION environment variable is not set")
+
 # for development, use account/region from cdk cli
 dev_env = Environment(
     account=os.getenv("CDK_DEFAULT_ACCOUNT"), region=os.getenv("CDK_DEFAULT_REGION")

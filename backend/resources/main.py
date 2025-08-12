@@ -526,6 +526,20 @@ class MyStack(Stack):
             )
         )
         
+        # Add Lambda invoke permissions for SageMaker pipeline Lambda steps
+        sagemaker_execution_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "lambda:InvokeFunction",
+                ],
+                resources=[
+                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_NAVIGATION_INFERENCE_RECOMMENDATION}",
+                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_DEPLOY_NAVIGATION_ENDPOINT}",
+                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_SETUP_NAVIGATION_ENDPOINT_AUTOSCALING}",
+                ],
+            )
+        )
+        
         # Output the secret name for user reference
         CfnOutput(
             self,
