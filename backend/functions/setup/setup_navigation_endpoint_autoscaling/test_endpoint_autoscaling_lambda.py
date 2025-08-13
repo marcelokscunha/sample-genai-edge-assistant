@@ -5,15 +5,11 @@ from botocore.exceptions import ClientError
 from moto import mock_aws
 import boto3
 
-# Import the lambda function
-import sys
-import os
-import importlib.util
-
 from src.endpoint_autoscaling_lambda import handler, setup_auto_scaling
 
-@mock_aws
-def test_handler_success():
+@patch('src.endpoint_autoscaling_lambda.validate_endpoint_exists')
+@patch('src.endpoint_autoscaling_lambda.setup_auto_scaling')
+def test_handler_success(mock_setup, mock_validate):
     """Test successful autoscaling configuration"""
     # Arrange
     event = {
@@ -24,21 +20,21 @@ def test_handler_success():
     }
     context = Mock()
     
+    mock_validate.return_value = None  # No exception raised
+    mock_setup.return_value = None
+    
     # Act
     result = handler(event, context)
     
-    # Assert
-    assert result["statusCode"] == 200
-    assert result["success"] is True
-    assert result["endpoint_name"] == "test-navigation-endpoint"
-    assert "Successfully configured autoscaling" in result["message"]
-    assert result["autoscaling_config"]["min_capacity"] == 1
-    assert result["autoscaling_config"]["max_capacity"] == 2
-    assert result["autoscaling_config"]["target_value"] == 10.0
+    # Assert - handler now returns None on success
+    assert result is None
+    mock_validate.assert_called_once_with("test-navigation-endpoint")
+    mock_setup.assert_called_once_with("test-navigation-endpoint", 1, 2, 10.0)
 
 
-@mock_aws
-def test_handler_with_default_values():
+@patch('src.endpoint_autoscaling_lambda.validate_endpoint_exists')
+@patch('src.endpoint_autoscaling_lambda.setup_auto_scaling')
+def test_handler_with_default_values(mock_setup, mock_validate):
     """Test handler with default autoscaling values"""
     # Arrange
     event = {
@@ -46,15 +42,15 @@ def test_handler_with_default_values():
     }
     context = Mock()
     
+    mock_validate.return_value = None  # No exception raised
+    mock_setup.return_value = None
+    
     # Act
     result = handler(event, context)
     
-    # Assert
-    assert result["statusCode"] == 200
-    assert result["success"] is True
-    assert result["autoscaling_config"]["min_capacity"] == 1
-    assert result["autoscaling_config"]["max_capacity"] == 2
-    assert result["autoscaling_config"]["target_value"] == 10.0
+    # Assert - handler returns None, check default values were used
+    assert result is None
+    mock_setup.assert_called_once_with("test-navigation-endpoint", 1, 2, 10.0)
 
 
 def test_handler_missing_endpoint_name():
@@ -72,7 +68,25 @@ def test_handler_missing_endpoint_name():
     assert "Missing 'endpoint_name'" in result["error"]
 
 
-def test_handler_already_configured():
+@patch('src.endpoint_autoscaling_lambda.validate_endpoint_exists')
+def test_handler_endpoint_not_ready(mock_validate):
+    """Test handler when endpoint is not ready"""
+    # Arrange
+    event = {
+        "endpoint_name": "test-navigation-endpoint"
+    }
+    context = Mock()
+    
+    mock_validate.side_effect = RuntimeError("Endpoint test-navigation-endpoint is in an invalid state: Failed")
+    
+    # Act & Assert - should raise the exception
+    with pytest.raises(RuntimeError, match="invalid state: Failed"):
+        handler(event, context)
+
+
+@patch('src.endpoint_autoscaling_lambda.validate_endpoint_exists')
+@patch('src.endpoint_autoscaling_lambda.setup_auto_scaling')
+def test_handler_already_configured(mock_setup, mock_validate):
     """Test handler when autoscaling is already configured"""
     # Arrange
     event = {
@@ -80,64 +94,41 @@ def test_handler_already_configured():
     }
     context = Mock()
     
-    # Mock the setup_auto_scaling function to raise ValidationException
-    original_setup = lambda_module.setup_auto_scaling
+    mock_validate.return_value = None
+    mock_setup.side_effect = ClientError(
+        error_response={'Error': {'Code': 'ValidationException', 'Message': 'Already exists'}},
+        operation_name='RegisterScalableTarget'
+    )
     
-    def mock_setup(*args, **kwargs):
-        raise ClientError(
-            error_response={'Error': {'Code': 'ValidationException', 'Message': 'Already exists'}},
-            operation_name='RegisterScalableTarget'
-        )
-    
-    lambda_module.setup_auto_scaling = mock_setup
-    
-    try:
-        # Act
-        result = handler(event, context)
-        
-        # Assert
-        assert result["statusCode"] == 200
-        assert result["success"] is True
-        assert result["already_configured"] is True
-        assert "already configured" in result["message"]
-    finally:
-        # Restore original function
-        lambda_module.setup_auto_scaling = original_setup
+    # Act & Assert - should raise the ClientError
+    with pytest.raises(ClientError):
+        handler(event, context)
 
 
-def test_handler_client_error():
-    """Test handler with AWS ClientError - using mock for error simulation"""
+@patch('src.endpoint_autoscaling_lambda.validate_endpoint_exists')
+@patch('src.endpoint_autoscaling_lambda.setup_auto_scaling')
+def test_handler_client_error(mock_setup, mock_validate):
+    """Test handler with AWS ClientError"""
     # Arrange
     event = {
         "endpoint_name": "test-navigation-endpoint"
     }
     context = Mock()
     
-    # Mock the setup_auto_scaling function to raise ClientError
-    original_setup = lambda_module.setup_auto_scaling
+    mock_validate.return_value = None
+    mock_setup.side_effect = ClientError(
+        error_response={'Error': {'Code': 'AccessDenied', 'Message': 'Access denied'}},
+        operation_name='RegisterScalableTarget'
+    )
     
-    def mock_setup(*args, **kwargs):
-        raise ClientError(
-            error_response={'Error': {'Code': 'AccessDenied', 'Message': 'Access denied'}},
-            operation_name='RegisterScalableTarget'
-        )
-    
-    lambda_module.setup_auto_scaling = mock_setup
-    
-    try:
-        # Act
-        result = handler(event, context)
-        
-        # Assert
-        assert result["statusCode"] == 500
-        assert result["success"] is False
-        assert "AWS ClientError" in result["error"]
-    finally:
-        # Restore original function
-        lambda_module.setup_auto_scaling = original_setup
+    # Act & Assert - should raise the ClientError
+    with pytest.raises(ClientError):
+        handler(event, context)
 
 
-def test_handler_unexpected_error():
+@patch('src.endpoint_autoscaling_lambda.validate_endpoint_exists')
+@patch('src.endpoint_autoscaling_lambda.setup_auto_scaling')
+def test_handler_unexpected_error(mock_setup, mock_validate):
     """Test handler with unexpected error"""
     # Arrange
     event = {
@@ -145,25 +136,12 @@ def test_handler_unexpected_error():
     }
     context = Mock()
     
-    # Mock the setup_auto_scaling function to raise unexpected error
-    original_setup = lambda_module.setup_auto_scaling
+    mock_validate.return_value = None
+    mock_setup.side_effect = Exception("Unexpected error")
     
-    def mock_setup(*args, **kwargs):
-        raise Exception("Unexpected error")
-    
-    lambda_module.setup_auto_scaling = mock_setup
-    
-    try:
-        # Act
-        result = handler(event, context)
-        
-        # Assert
-        assert result["statusCode"] == 500
-        assert result["success"] is False
-        assert "Unexpected error" in result["error"]
-    finally:
-        # Restore original function
-        lambda_module.setup_auto_scaling = original_setup
+    # Act & Assert - should raise the Exception
+    with pytest.raises(Exception, match="Unexpected error"):
+        handler(event, context)
 
 
 @mock_aws

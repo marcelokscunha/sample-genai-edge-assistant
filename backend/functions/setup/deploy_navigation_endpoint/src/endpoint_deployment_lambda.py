@@ -1,187 +1,96 @@
 import json
+import time
+
 import boto3
 from botocore.exceptions import ClientError
 
 
 def handler(event, context):
     """
-    Lambda function to deploy navigation endpoint from approved model package within SageMaker pipeline context.
-    
-    This function is designed to be called as a pipeline step, receiving model package ARN
-    and endpoint configuration as parameters.
-    
-    Args:
-        event: Pipeline step event containing model_package_arn, endpoint_name, etc.
-        context: Lambda context
-        
-    Returns:
-        dict: Structured response for pipeline continuation
+    Lambda function to deploy endpoint from existing SageMaker model.
     """
     print(f"Received event: {json.dumps(event, indent=2)}")
     
-    # Extract parameters from pipeline step
-    try:
-        model_package_arn = event.get("model_package_arn")
-        endpoint_name = event.get("endpoint_name")
-        instance_type = event.get("instance_type", "ml.g5.xlarge")
-        initial_instance_count = event.get("initial_instance_count", 1)
-        execution_role = event.get("execution_role")
-        region = event.get("region")
-        
-        if not model_package_arn:
-            raise ValueError("Missing 'model_package_arn' in event parameters")
-        if not endpoint_name:
-            raise ValueError("Missing 'endpoint_name' in event parameters")
-        if not execution_role:
-            raise ValueError("Missing 'execution_role' in event parameters")
-            
-        print(f"Deploying endpoint: {endpoint_name}")
-        print(f"Model package ARN: {model_package_arn}")
-        print(f"Instance type: {instance_type}, count: {initial_instance_count}")
-        
-    except Exception as e:
-        error_msg = f"Failed to parse event parameters: {str(e)}"
-        print(error_msg)
-        return {
-            "statusCode": 400,
-            "success": False,
-            "error": error_msg,
-            "endpoint_name": event.get("endpoint_name", "unknown")
-        }
+    model_package_arn = event.get("model_package_arn")
+    endpoint_name = event.get("endpoint_name")
+    instance_type = event.get("instance_type", "ml.g5.xlarge")
+    initial_instance_count = event.get("initial_instance_count", 1)
+    
+    if not model_package_arn:
+        raise ValueError("Missing 'model_package_arn' in event parameters")
+    if not endpoint_name:
+        raise ValueError("Missing 'endpoint_name' in event parameters")
+    
+    model_name = get_model_name_from_package(model_package_arn)
 
+    print(f"Deploying endpoint: {endpoint_name}")
+    print(f"Using existing model from model package: {model_name} (package: {model_package_arn})")
+    print(f"Instance type: {instance_type}, count: {initial_instance_count}")
+    
     try:
-        endpoint_arn = deploy_endpoint_from_model_package(
-            model_package_arn=model_package_arn,
+        deploy_endpoint_from_existing_model(
+            model_name=model_name,
             endpoint_name=endpoint_name,
             instance_type=instance_type,
-            initial_instance_count=initial_instance_count,
-            execution_role=execution_role,
-            region=region
+            initial_instance_count=initial_instance_count
         )
-        
-        success_msg = f"Successfully deployed endpoint {endpoint_name}"
-        print(success_msg)
-        
-        return {
-            "statusCode": 200,
-            "success": True,
-            "message": success_msg,
-            "endpoint_name": endpoint_name,
-            "endpoint_arn": endpoint_arn,
-            "endpoint_config": {
-                "instance_type": instance_type,
-                "initial_instance_count": initial_instance_count
-            }
-        }
+        print(f"Successfully deployed endpoint {endpoint_name}")
         
     except ClientError as e:
-        error_code = e.response["Error"]["Code"]
-        if error_code == "ValidationException" and "already exists" in str(e):
-            warning_msg = f"Endpoint {endpoint_name} already exists, checking status"
-            print(warning_msg)
-            
-            # Check if existing endpoint is in service
-            sagemaker_client = boto3.client("sagemaker")
-            try:
-                response = sagemaker_client.describe_endpoint(EndpointName=endpoint_name)
-                endpoint_status = response["EndpointStatus"]
-                
-                if endpoint_status == "InService":
-                    return {
-                        "statusCode": 200,
-                        "success": True,
-                        "message": f"Endpoint {endpoint_name} already exists and is InService",
-                        "endpoint_name": endpoint_name,
-                        "endpoint_arn": response["EndpointArn"],
-                        "already_exists": True
-                    }
-                else:
-                    return {
-                        "statusCode": 202,
-                        "success": True,
-                        "message": f"Endpoint {endpoint_name} already exists with status: {endpoint_status}",
-                        "endpoint_name": endpoint_name,
-                        "endpoint_status": endpoint_status,
-                        "already_exists": True
-                    }
-            except Exception as desc_error:
-                error_msg = f"Failed to describe existing endpoint: {str(desc_error)}"
-                print(error_msg)
-                return {
-                    "statusCode": 500,
-                    "success": False,
-                    "error": error_msg,
-                    "endpoint_name": endpoint_name
-                }
+        if e.response["Error"]["Code"] == "ValidationException" and "already exists" in str(e):
+            print(f"Endpoint {endpoint_name} already exists, checking status")
+            check_existing_endpoint(endpoint_name)
         else:
-            error_msg = f"AWS ClientError deploying endpoint: {str(e)}"
-            print(error_msg)
-            return {
-                "statusCode": 500,
-                "success": False,
-                "error": error_msg,
-                "endpoint_name": endpoint_name
-            }
-            
-    except Exception as e:
-        error_msg = f"Unexpected error deploying endpoint: {str(e)}"
-        print(error_msg)
-        return {
-            "statusCode": 500,
-            "success": False,
-            "error": error_msg,
-            "endpoint_name": endpoint_name
-        }
+            raise
 
 
-def deploy_endpoint_from_model_package(
-    model_package_arn,
+def check_existing_endpoint(endpoint_name):
+    """Check if existing endpoint is usable, raise exception if not."""
+    sagemaker_client = boto3.client("sagemaker")
+    response = sagemaker_client.describe_endpoint(EndpointName=endpoint_name)
+    status = response["EndpointStatus"]
+    
+    print(f"Existing endpoint {endpoint_name} status: {status}")
+    
+    if status in ["InService", "Creating", "Updating"]:
+        print(f"Endpoint {endpoint_name} is in acceptable state: {status}")
+    else:
+        raise RuntimeError(f"Endpoint {endpoint_name} is in unusable state: {status}")
+
+def get_model_name_from_package(model_package_arn):
+    """
+    Get model name from model package ARN.
+    There must be a CustomerMetadataProperties in the format: { "model_name": "<CREATED-MODEL-NAME>"}
+    """
+    sagemaker_client = boto3.client("sagemaker")
+    response = sagemaker_client.describe_model_package(ModelPackageName=model_package_arn)
+    return response["CustomerMetadataProperties"]["model_name"]
+
+def deploy_endpoint_from_existing_model(
+    model_name,
     endpoint_name,
     instance_type="ml.g5.xlarge",
-    initial_instance_count=1,
-    execution_role=None,
-    region=None
+    initial_instance_count=1
 ):
     """
-    Deploy a SageMaker endpoint from an approved model package.
+    Deploy a SageMaker endpoint from an existing SageMaker model.
     
     Args:
-        model_package_arn (str): ARN of the approved model package
+        model_name (str): Name of the existing SageMaker model
         endpoint_name (str): Name for the endpoint
         instance_type (str): EC2 instance type for the endpoint
         initial_instance_count (int): Initial number of instances
-        execution_role (str): IAM role ARN for SageMaker execution
-        region (str): AWS region
-        
-    Returns:
-        str: ARN of the created endpoint
     """
     sagemaker_client = boto3.client("sagemaker")
     
-    # Generate unique names for model and endpoint config
-    import time
+    # Generate unique endpoint config name
     timestamp = str(int(time.time()))
-    model_name = f"{endpoint_name}-model-{timestamp}"
     endpoint_config_name = f"{endpoint_name}-config-{timestamp}"
     
-    print(f"Creating model: {model_name}")
     print(f"Creating endpoint config: {endpoint_config_name}")
     
-    # Step 1: Create model from model package
-    create_model_response = sagemaker_client.create_model(
-        ModelName=model_name,
-        Containers=[
-            {
-                "ModelPackageName": model_package_arn
-            }
-        ],
-        ExecutionRoleArn=execution_role,
-    )
-    
-    print(f"Created model: {create_model_response['ModelArn']}")
-    
-    # Step 2: Create endpoint configuration
-    create_config_response = sagemaker_client.create_endpoint_config(
+    # Step 1: Create endpoint configuration
+    sagemaker_client.create_endpoint_config(
         EndpointConfigName=endpoint_config_name,
         ProductionVariants=[
             {
@@ -194,9 +103,9 @@ def deploy_endpoint_from_model_package(
         ],
     )
     
-    print(f"Created endpoint config: {create_config_response['EndpointConfigArn']}")
+    print(f"Created endpoint config: {endpoint_config_name}")
     
-    # Step 3: Create endpoint
+    # Step 2: Create endpoint
     create_endpoint_response = sagemaker_client.create_endpoint(
         EndpointName=endpoint_name,
         EndpointConfigName=endpoint_config_name,
@@ -220,6 +129,4 @@ def deploy_endpoint_from_model_package(
         print(f"Endpoint {endpoint_name} is now InService")
     except Exception as e:
         print(f"Warning: Endpoint deployment may still be in progress: {str(e)}")
-        # Don't fail the pipeline if waiting times out, endpoint may still deploy successfully
-    
-    return endpoint_arn
+        # Don't fail - endpoint may still deploy successfully

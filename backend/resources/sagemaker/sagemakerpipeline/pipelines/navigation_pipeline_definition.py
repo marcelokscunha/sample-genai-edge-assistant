@@ -4,12 +4,13 @@
 from sagemaker import image_uris
 from sagemaker.processing import ProcessingJob, ProcessingOutput, ProcessingInput
 from sagemaker.pytorch.estimator import PyTorch
+from sagemaker.pytorch.model import PyTorchModel
 from sagemaker.processing import FrameworkProcessor
 from sagemaker.workflow.execution_variables import ExecutionVariables
 from sagemaker.workflow.functions import Join
 from sagemaker.workflow.parameters import ParameterString, ParameterInteger, ParameterFloat
 from sagemaker.workflow.pipeline import Pipeline
-from sagemaker.workflow.step_collections import RegisterModel
+from sagemaker.workflow.model_step import ModelStep
 from sagemaker.workflow.steps import ProcessingStep, TrainingStep, CacheConfig
 from sagemaker.workflow.lambda_step import LambdaStep
 from sagemaker.lambda_helper import Lambda
@@ -180,7 +181,6 @@ class NavigationModelTrainingPipeline:
             cache_config=cache_config,
         )
 
-        # Step 3: Model Registration
         # Sample payload S3 URI from validation step
         sample_payload_s3_uri = Join(
             on="/",
@@ -190,36 +190,48 @@ class NavigationModelTrainingPipeline:
             ],
         )
         
-        # Ensure we use the same configuration as the validation step (GPU-enabled) - we only deploy what we tested
-        inference_estimator = PyTorch(
-            entry_point="dummy.py",  # Required but not used by RegisterModel
+        # Step 3: Model Creation using ModelStep
+        pytorch_model = PyTorchModel(
+            model_data=model_artifact_s3_uri,
             role=execution_role,
-            instance_type=inference_instance_type,
-            instance_count=1,
             framework_version=pytorch_version,
             py_version=py_version,
             sagemaker_session=pipeline_session,
         )
         
-        # Use the inference estimator for model registration
-        register_model_step = RegisterModel(
-            estimator=inference_estimator,
-            name="RegisterNavigationModel",
-            display_name="Register Navigation Model",
-            description="Register the validated navigation model in SageMaker Model Registry",
-            model_data=model_artifact_s3_uri,
+        create_model_step_args = pytorch_model.create(
+            instance_type=inference_instance_type
+        )
+        create_model_step = ModelStep(
+            name="CreateNavigationModel",
+            display_name="Create Navigation Model",
+            description="Create SageMaker Model for deployment",
+            step_args=create_model_step_args,
+            depends_on=[validation_step],
+        )
+
+        # Step 4: Model registration in Registry using ModelStep
+        register_model_step_args = pytorch_model.register(
             content_types=["application/json"],
             response_types=["application/json"],
-            inference_instances=["ml.g6.xlarge", "ml.g6.2xlarge"],
+            inference_instances=[inference_instance_type],
             model_package_group_name=package_group_name,
             approval_status=approval_status,
             sample_payload_url=sample_payload_s3_uri,
             domain="COMPUTER_VISION",
             task="TEXT_GENERATION",
-            depends_on=[validation_step],
+            customer_metadata_properties={"model_name": create_model_step.properties.ModelName}
+        )
+        
+        register_model_step = ModelStep(
+            name="RegisterNavigationModel",
+            display_name="Register Navigation Model", 
+            description="Register the validated navigation model in SageMaker Model Registry",
+            step_args=register_model_step_args,
+            depends_on=[create_model_step],
         )
 
-        # Step 4: Inference Recommendation (Optional/Non-blocking)
+        # Step 5: Inference Recommendation (Optional/Non-blocking)
         # Lambda function for creating inference recommendation job
         inference_recommendation_lambda = Lambda(
             function_name=shared_variables.LAMBDA_NAVIGATION_INFERENCE_RECOMMENDATION,
@@ -282,6 +294,7 @@ class NavigationModelTrainingPipeline:
                 training_step,
                 validation_step, 
                 register_model_step,
+                create_model_step,
                 inference_recommendation_step
             ],
             sagemaker_session=sagemaker_session,
@@ -319,7 +332,6 @@ class NavigationModelDeploymentPipeline:
         # Pipeline parameters - model package ARN provided by EventBridge trigger
         model_package_arn = ParameterString(
             name="ModelPackageArn",
-            default_value=""  # Provided by EventBridge trigger
         )
 
         endpoint_name = ParameterString(
@@ -363,7 +375,7 @@ class NavigationModelDeploymentPipeline:
             script=f"{shared_variables.BACKEND_DIR}/functions/setup/deploy_navigation_endpoint/src/endpoint_deployment_lambda.py",
             handler="endpoint_deployment_lambda.handler",
             timeout=900,  # 15 minutes timeout for endpoint deployment
-            memory_size=512,
+            memory_size=128,
         )
 
         deploy_step = LambdaStep(
@@ -376,8 +388,6 @@ class NavigationModelDeploymentPipeline:
                 "endpoint_name": endpoint_name,
                 "instance_type": instance_type,
                 "initial_instance_count": initial_instance_count,
-                "execution_role": execution_role,
-                "region": region,
             },
         )
 
@@ -389,7 +399,7 @@ class NavigationModelDeploymentPipeline:
             script=f"{shared_variables.BACKEND_DIR}/functions/setup/setup_navigation_endpoint_autoscaling/src/endpoint_autoscaling_lambda.py",
             handler="endpoint_autoscaling_lambda.handler",
             timeout=300,  # 5 minutes timeout
-            memory_size=256,
+            memory_size=128,
         )
 
         autoscaling_step = LambdaStep(
