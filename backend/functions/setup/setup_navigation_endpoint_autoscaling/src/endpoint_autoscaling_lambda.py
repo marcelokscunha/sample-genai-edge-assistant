@@ -1,4 +1,5 @@
 import json
+import time
 import boto3
 from botocore.exceptions import ClientError
 
@@ -19,25 +20,40 @@ def handler(event, context):
     
     print(f"Configuring autoscaling for endpoint: {endpoint_name}")
     
-    # Validate endpoint exists and is in valid state
-    validate_endpoint_exists(endpoint_name)
+    sagemaker = boto3.client("sagemaker")
+    
+    # Wait for endpoint to be InService before configuring autoscaling
+    wait_for_endpoint_in_service(sagemaker, endpoint_name, context)
 
     # Setup auto scaling for the endpoint
     setup_auto_scaling(endpoint_name, min_capacity, max_capacity, target_value)
+
+
+def wait_for_endpoint_in_service(sagemaker, endpoint_name, context):
+    """Wait for endpoint to be InService before configuring autoscaling."""
+    # Leave 7 minutes buffer before lambda timeout
+    timeout_buffer = 7*60*1000  # 7 minutes in milliseconds
+    
+    while True:
+        # Check remaining time
+        remaining_time = context.get_remaining_time_in_millis()
+        if remaining_time <= timeout_buffer:
+            print(f"Lambda timeout approaching, endpoint {endpoint_name} may still be deploying")
+            return
         
-
-def validate_endpoint_exists(endpoint_name):
-    """Validate that the SageMaker endpoint exists and is not in a failed state."""
-
-    sagemaker_client = boto3.client("sagemaker")
-    response = sagemaker_client.describe_endpoint(EndpointName=endpoint_name)
-    status = response["EndpointStatus"]
+        # Check endpoint status
+        response = sagemaker.describe_endpoint(EndpointName=endpoint_name)
+        status = response["EndpointStatus"]
         
-    print(f"Endpoint {endpoint_name} status: {status}")
-
-    valid_statuses = ["Creating", "InService", "Updating"]
-    if not status in valid_statuses:
-        raise RuntimeError(f"Endpoint {endpoint_name} is in an invalid state: {status}")
+        if status == "InService":
+            print(f"Endpoint {endpoint_name} is InService, ready for autoscaling")
+            return
+        elif status == "Failed":
+            failure_reason = response.get("FailureReason", "Unknown failure")
+            raise RuntimeError(f"Endpoint {endpoint_name} failed: {failure_reason}")
+        else:
+            print(f"Endpoint {endpoint_name} status: {status}, waiting for InService...")
+            time.sleep(30)
 
 
 def setup_auto_scaling(endpoint_name, min_capacity=1, max_capacity=2, target_value=10.0):

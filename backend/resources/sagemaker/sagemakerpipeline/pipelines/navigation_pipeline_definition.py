@@ -5,11 +5,13 @@ from sagemaker import image_uris
 from sagemaker.processing import ProcessingJob, ProcessingOutput, ProcessingInput
 from sagemaker.pytorch.estimator import PyTorch
 from sagemaker.pytorch.model import PyTorchModel
+from sagemaker.pytorch.model import PyTorchModel
 from sagemaker.processing import FrameworkProcessor
 from sagemaker.workflow.execution_variables import ExecutionVariables
 from sagemaker.workflow.functions import Join
 from sagemaker.workflow.parameters import ParameterString, ParameterInteger, ParameterFloat
 from sagemaker.workflow.pipeline import Pipeline
+from sagemaker.workflow.model_step import ModelStep
 from sagemaker.workflow.model_step import ModelStep
 from sagemaker.workflow.steps import ProcessingStep, TrainingStep, CacheConfig
 from sagemaker.workflow.lambda_step import LambdaStep
@@ -193,6 +195,9 @@ class NavigationModelTrainingPipeline:
         # Step 3: Model Creation using ModelStep
         pytorch_model = PyTorchModel(
             model_data=model_artifact_s3_uri,
+        # Step 3: Model Creation using ModelStep
+        pytorch_model = PyTorchModel(
+            model_data=model_artifact_s3_uri,
             role=execution_role,
             framework_version=pytorch_version,
             py_version=py_version,
@@ -212,8 +217,22 @@ class NavigationModelTrainingPipeline:
 
         # Step 4: Model registration in Registry using ModelStep
         register_model_step_args = pytorch_model.register(
+        create_model_step_args = pytorch_model.create(
+            instance_type=inference_instance_type
+        )
+        create_model_step = ModelStep(
+            name="CreateNavigationModel",
+            display_name="Create Navigation Model",
+            description="Create SageMaker Model for deployment",
+            step_args=create_model_step_args,
+            depends_on=[validation_step],
+        )
+
+        # Step 4: Model registration in Registry using ModelStep
+        register_model_step_args = pytorch_model.register(
             content_types=["application/json"],
             response_types=["application/json"],
+            inference_instances=[inference_instance_type],
             inference_instances=[inference_instance_type],
             model_package_group_name=package_group_name,
             approval_status=approval_status,
@@ -229,8 +248,18 @@ class NavigationModelTrainingPipeline:
             description="Register the validated navigation model in SageMaker Model Registry",
             step_args=register_model_step_args,
             depends_on=[create_model_step],
+            customer_metadata_properties={"model_name": create_model_step.properties.ModelName}
+        )
+        
+        register_model_step = ModelStep(
+            name="RegisterNavigationModel",
+            display_name="Register Navigation Model", 
+            description="Register the validated navigation model in SageMaker Model Registry",
+            step_args=register_model_step_args,
+            depends_on=[create_model_step],
         )
 
+        # Step 5: Inference Recommendation (Optional/Non-blocking)
         # Step 5: Inference Recommendation (Optional/Non-blocking)
         # Lambda function for creating inference recommendation job
         inference_recommendation_lambda = Lambda(
@@ -294,6 +323,7 @@ class NavigationModelTrainingPipeline:
                 training_step,
                 validation_step, 
                 register_model_step,
+                create_model_step,
                 create_model_step,
                 inference_recommendation_step
             ],
@@ -376,6 +406,7 @@ class NavigationModelDeploymentPipeline:
             handler="endpoint_deployment_lambda.handler",
             timeout=900,  # 15 minutes timeout for endpoint deployment
             memory_size=128,
+            memory_size=128,
         )
 
         deploy_step = LambdaStep(
@@ -398,7 +429,7 @@ class NavigationModelDeploymentPipeline:
             execution_role_arn=lambda_execution_role,
             script=f"{shared_variables.BACKEND_DIR}/functions/setup/setup_navigation_endpoint_autoscaling/src/endpoint_autoscaling_lambda.py",
             handler="endpoint_autoscaling_lambda.handler",
-            timeout=300,  # 5 minutes timeout
+            timeout=900,  # 15 minutes timeout
             memory_size=128,
         )
 
