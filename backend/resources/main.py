@@ -746,6 +746,7 @@ class MyStack(Stack):
 
             # Create Amplify app with environment variables
             amplify_env_vars = {
+                "NEXT_PUBLIC_AWS_REGION": self.region,
                 "NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID": cognito_user_pool_client.user_pool_client_id,
                 "NEXT_PUBLIC_COGNITO_USER_POOL_ID": cognito_user_pool.user_pool_id,
                 "NEXT_PUBLIC_API_GATEWAY_ENDPOINT": apigw_construct.get_url(),

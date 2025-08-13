@@ -8,7 +8,7 @@ import { IChatService, ChatServiceType } from './chatService.js';
 export class SageMakerChatService extends IChatService {
   constructor() {
     super();
-    this.endpointName = process.env.NEXT_PUBLIC_SAGEMAKER_ENDPOINT_NAME;
+    this.endpointName = process.env.NEXT_PUBLIC_CHAT_ENDPOINT_NAME;
     this.region = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
     this.identityPoolId = process.env.NEXT_PUBLIC_IDENTITY_POOL_ID;
     
