@@ -4,6 +4,7 @@
 import shared_variables as shared_variables
 from aws_cdk import CfnOutput, Duration, RemovalPolicy
 from aws_cdk import aws_cognito as cognito
+from aws_cdk.aws_cognito_identitypool import IdentityPool, UserPoolAuthenticationProvider, IdentityPoolAuthenticationProviders
 from cdk_nag import NagPackSuppression, NagSuppressions
 from constructs import Construct
 
@@ -87,8 +88,31 @@ class CognitoConstruct(Construct):
             export_name=shared_variables.CDK_OUT_EXPORT_COGNITO_USER_POOL_CLIENT_ID,
         )
 
+        # TODO: temporary Identity Pool for SageMaker access (to be implemented: WSS API GW -> Lambda -> SM Stream)
+        self.identity_pool = IdentityPool(
+            self,
+            "IdentityPool",
+            authentication_providers=IdentityPoolAuthenticationProviders(
+                user_pools=[UserPoolAuthenticationProvider(
+                    user_pool=self.user_pool,
+                    user_pool_client=self.user_pool_client
+                )]
+            ),
+            allow_unauthenticated_identities=False,
+        )
+        
+        CfnOutput(
+            self,
+            shared_variables.CDK_OUT_KEY_COGNITO_IDENTITY_POOL_ID,
+            value=self.identity_pool.identity_pool_id,
+            export_name=shared_variables.CDK_OUT_EXPORT_COGNITO_IDENTITY_POOL_ID,
+        )
+
     def getUserPool(self):
         return self.user_pool
 
     def getUserPoolClient(self):
         return self.user_pool_client
+
+    def getIdentityPool(self):
+        return self.identity_pool

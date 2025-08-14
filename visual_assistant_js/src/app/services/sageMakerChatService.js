@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT-0
 
 import { SageMakerRuntimeClient, InvokeEndpointCommand, InvokeEndpointWithResponseStreamCommand } from '@aws-sdk/client-sagemaker-runtime';
-import { fromCognitoIdentityPool } from '@aws-sdk/credential-providers';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { IChatService, ChatServiceType } from './chatService.js';
 
 export class SageMakerChatService extends IChatService {
@@ -10,15 +10,23 @@ export class SageMakerChatService extends IChatService {
     super();
     this.endpointName = process.env.NEXT_PUBLIC_CHAT_ENDPOINT_NAME;
     this.region = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
-    this.identityPoolId = process.env.NEXT_PUBLIC_IDENTITY_POOL_ID;
-    
-    // Initialize SageMaker client
-    this.client = new SageMakerRuntimeClient({
-      region: this.region,
-      credentials: fromCognitoIdentityPool({
-        identityPoolId: this.identityPoolId,
-      }),
-    });
+    this.client = null; // Will be initialized with credentials when needed
+  }
+
+  async getClient() {
+    if (!this.client) {
+      const session = await fetchAuthSession();
+      
+      if (!session.credentials) {
+        throw new Error('No credentials found in auth session. Make sure you are signed in and the identity pool is configured correctly.');
+      }
+      
+      this.client = new SageMakerRuntimeClient({
+        region: this.region,
+        credentials: session.credentials,
+      });
+    }
+    return this.client;
   }
 
   async sendMessage(message, streaming = false) {
@@ -45,6 +53,7 @@ export class SageMakerChatService extends IChatService {
   }
 
   async invokeEndpoint(body) {
+    const client = await this.getClient();
     const command = new InvokeEndpointCommand({
       EndpointName: this.endpointName,
       Body: new TextEncoder().encode(body),
@@ -52,7 +61,7 @@ export class SageMakerChatService extends IChatService {
       Accept: 'application/json',
     });
 
-    const response = await this.client.send(command);
+    const response = await client.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.Body));
 
     return {
@@ -71,6 +80,7 @@ export class SageMakerChatService extends IChatService {
   }
 
   async invokeEndpointStreaming(body) {
+    const client = await this.getClient();
     const command = new InvokeEndpointWithResponseStreamCommand({
       EndpointName: this.endpointName,
       Body: new TextEncoder().encode(body),
@@ -78,7 +88,7 @@ export class SageMakerChatService extends IChatService {
       Accept: 'application/json',
     });
 
-    const response = await this.client.send(command);
+    const response = await client.send(command);
     let fullText = '';
 
     // Process the streaming response

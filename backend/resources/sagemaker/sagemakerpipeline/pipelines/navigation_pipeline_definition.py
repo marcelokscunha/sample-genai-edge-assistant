@@ -195,9 +195,6 @@ class NavigationModelTrainingPipeline:
         # Step 3: Model Creation using ModelStep
         pytorch_model = PyTorchModel(
             model_data=model_artifact_s3_uri,
-        # Step 3: Model Creation using ModelStep
-        pytorch_model = PyTorchModel(
-            model_data=model_artifact_s3_uri,
             role=execution_role,
             framework_version=pytorch_version,
             py_version=py_version,
@@ -215,8 +212,6 @@ class NavigationModelTrainingPipeline:
             depends_on=[validation_step],
         )
 
-        # Step 4: Model registration in Registry using ModelStep
-        register_model_step_args = pytorch_model.register(
         create_model_step_args = pytorch_model.create(
             instance_type=inference_instance_type
         )
@@ -259,7 +254,6 @@ class NavigationModelTrainingPipeline:
             depends_on=[create_model_step],
         )
 
-        # Step 5: Inference Recommendation (Optional/Non-blocking)
         # Step 5: Inference Recommendation (Optional/Non-blocking)
         # Lambda function for creating inference recommendation job
         inference_recommendation_lambda = Lambda(

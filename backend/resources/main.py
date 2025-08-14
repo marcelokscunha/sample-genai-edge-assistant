@@ -559,6 +559,18 @@ class MyStack(Stack):
 
         cognito_user_pool = cognito_construct_output.getUserPool()
         cognito_user_pool_client = cognito_construct_output.getUserPoolClient()
+        cognito_identity_pool = cognito_construct_output.getIdentityPool()
+
+        # Grant SageMaker permissions to Identity Pool authenticated role
+        cognito_identity_pool.authenticated_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["sagemaker:InvokeEndpoint"],
+                resources=[
+                    f"arn:aws:sagemaker:{Aws.REGION}:{Aws.ACCOUNT_ID}:endpoint/*"
+                ],
+            )
+        )
 
         ########## LAMBDA FUNCTIONS ############
 
@@ -908,6 +920,8 @@ class MyStack(Stack):
                 "NEXT_PUBLIC_AWS_REGION": self.region,
                 "NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID": cognito_user_pool_client.user_pool_client_id,
                 "NEXT_PUBLIC_COGNITO_USER_POOL_ID": cognito_user_pool.user_pool_id,
+                # TODO: remove after final implementation of streaming chat via ws
+                "NEXT_PUBLIC_IDENTITY_POOL_ID": cognito_identity_pool.identity_pool_id,
                 "NEXT_PUBLIC_API_GATEWAY_ENDPOINT": apigw_construct.get_url(),
                 "NEXT_PUBLIC_CHAT_ENDPOINT_NAME": shared_variables.CHAT_ENDPOINT_NAME,
                 "NEXT_PUBLIC_DEBUG_AUDIO": "true",
