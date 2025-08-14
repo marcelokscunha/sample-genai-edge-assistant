@@ -12,7 +12,7 @@ def handler(event, context):
     
     endpoint_name = event.get("endpoint_name")
     if not endpoint_name:
-        return {"statusCode": 400, "success": False, "error": "Missing 'endpoint_name' in event parameters"}
+        raise ValueError("Missing 'endpoint_name' in event parameters")
     
     min_capacity = event.get("min_capacity", 1)
     max_capacity = event.get("max_capacity", 2)
