@@ -533,9 +533,9 @@ class MyStack(Stack):
                     "lambda:InvokeFunction",
                 ],
                 resources=[
-                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_NAVIGATION_INFERENCE_RECOMMENDATION}",
-                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_DEPLOY_NAVIGATION_ENDPOINT}",
-                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_SETUP_NAVIGATION_ENDPOINT_AUTOSCALING}",
+                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_GEMMA3N_INFERENCE_RECOMMENDATION}",
+                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_DEPLOY_GEMMA3N_ENDPOINT}",
+                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_SETUP_GEMMA3N_ENDPOINT_AUTOSCALING}",
                 ],
             )
         )
@@ -877,35 +877,35 @@ class MyStack(Stack):
 
         rule.add_target(targets.LambdaFunction(function_copy_model_from_s3_to_s3))
 
-        # EventBridge rule specifically for navigation model approval events
-        navigation_deployment_rule = events.Rule(
+        # EventBridge rule specifically for Gemma3n model approval events
+        gemma3n_deployment_rule = events.Rule(
             self,
-            "NavigationModelDeploymentRule",
-            rule_name="trigger-navigation-deployment-pipeline",
-            description=f"Triggers the navigation deployment pipeline when navigation models are approved in the Model Registry",
+            "Gemma3nModelDeploymentRule",
+            rule_name="trigger-gemma3n-deployment-pipeline",
+            description=f"Triggers the Gemma3n deployment pipeline when Gemma3n models are approved in the Model Registry",
             event_pattern=events.EventPattern(
                 source=["aws.sagemaker"],
                 detail_type=["SageMaker Model Package State Change"],
                 detail={
-                    "ModelPackageGroupName": [self.sagemaker_domain_users_models_construct.navigation_model_package_group.model_package_group_name],
+                    "ModelPackageGroupName": [self.sagemaker_domain_users_models_construct.gemma3n_model_package_group.model_package_group_name],
                     "ModelApprovalStatus": ["Approved"],
                 },
             ),
         )
 
-        navigation_deployment_rule.add_target(
+        gemma3n_deployment_rule.add_target(
             targets.AwsApi(
                 service="sagemaker",
                 action="startPipelineExecution",
                 parameters={
-                    "PipelineName": shared_variables.BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME,
+                    "PipelineName": shared_variables.BOTO3_GEMMA3N_DEPLOYMENT_PIPELINE_NAME,
                     "PipelineParameters": [
                         {
                             "Name": "ModelPackageArn",
                             "Value": events.EventField.from_path("$.detail.ModelPackageArn")
                         }
                     ],
-                    "PipelineExecutionDisplayName": f"navigation-model-approval-{events.EventField.from_path('$.detail.ModelPackageVersion')}"
+                    "PipelineExecutionDisplayName": f"gemma3n-model-approval-{events.EventField.from_path('$.detail.ModelPackageVersion')}"
                 },
             )
         )

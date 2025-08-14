@@ -88,11 +88,11 @@ CDK_OUT_EXPORT_SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME = (
     f"{STACK_NAME}-{CDK_OUT_KEY_SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME}"
 )
 
-CDK_OUT_KEY_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME = (
-    "vis-assis-navigation-model-package-group"
+CDK_OUT_KEY_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME = (
+    "vis-assis-gemma3n-model-package-group"
 )
-CDK_OUT_EXPORT_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME = (
-    f"{STACK_NAME}-{CDK_OUT_KEY_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME}"
+CDK_OUT_EXPORT_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME = (
+    f"{STACK_NAME}-{CDK_OUT_KEY_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME}"
 )
 
 CDK_OUT_KEY_SAGEMAKER_EXECUTION_ROLE_ARN = "SagemakerExecutionRoleARN"
@@ -129,14 +129,15 @@ BOTO3_IMAGE_CAPTIONING_PIPELINE_NAME = f"{STACK_NAME}-image-captioning-pipeline"
 BOTO3_OBJECT_DETECTION_PIPELINE_NAME = f"{STACK_NAME}-object-detection-pipeline"
 BOTO3_TTS_PIPELINE_NAME = f"{STACK_NAME}-tts-pipeline"
 BOTO3_VOCODER_PIPELINE_NAME = f"{STACK_NAME}-vocoder-pipeline"
-BOTO3_NAVIGATION_PREPARATION_PIPELINE_NAME = f"{STACK_NAME}-navigation-training-pipeline"
-BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME = f"{STACK_NAME}-navigation-deployment-pipeline"
+BOTO3_GEMMA3N_PREPARATION_PIPELINE_NAME = f"{STACK_NAME}-gemma3n-training-pipeline"
+BOTO3_GEMMA3N_DEPLOYMENT_PIPELINE_NAME = f"{STACK_NAME}-gemma3n-deployment-pipeline"
 
 # SageMaker Pipeline Lambda Function Names
-LAMBDA_NAVIGATION_INFERENCE_RECOMMENDATION = f"{STACK_NAME}-navigation-inference-recommendation"
-LAMBDA_DEPLOY_NAVIGATION_ENDPOINT = f"{STACK_NAME}-deploy-navigation-endpoint"
-LAMBDA_SETUP_NAVIGATION_ENDPOINT_AUTOSCALING = f"{STACK_NAME}-setup-navigation-endpoint-autoscaling"
+LAMBDA_GEMMA3N_INFERENCE_RECOMMENDATION = f"{STACK_NAME}-gemma3n-inference-recommendation"
+LAMBDA_DEPLOY_GEMMA3N_ENDPOINT = f"{STACK_NAME}-deploy-gemma3n-endpoint"
+LAMBDA_SETUP_GEMMA3N_ENDPOINT_AUTOSCALING = f"{STACK_NAME}-setup-gemma3n-endpoint-autoscaling"
 
 # Endpoint names
-CHAT_ENDPOINT_NAME = f"{STACK_NAME}-navigation-endpoint"  # TODO: for now both chat and navigation use the same llm deployed in an SM endpoint
-NAVIGATION_ENDPOINT_NAME = f"{STACK_NAME}-navigation-endpoint"
+GEMMA3N_ENDPOINT_NAME = f"{STACK_NAME}-gemma3n-endpoint"  # Foundation model endpoint supporting both chat and navigation use cases
+CHAT_ENDPOINT_NAME = f"{STACK_NAME}-gemma3n-endpoint"  # Alias for backward compatibility
+NAVIGATION_ENDPOINT_NAME = f"{STACK_NAME}-gemma3n-endpoint"  # Alias for backward compatibility

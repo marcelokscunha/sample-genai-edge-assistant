@@ -19,15 +19,17 @@ from sagemaker.lambda_helper import Lambda
 
 import shared_variables as shared_variables
 
-class NavigationModelTrainingPipeline:
+class Gemma3nModelTrainingPipeline:
     """
-    Navigation Model Preparation Pipeline for Gemma3n model.
+    Gemma3n Model Preparation Pipeline for foundation model.
     
     This pipeline handles:
     1. Model preparation (downloading and packaging) and training via PyTorch training job
     2. Model validation via PyTorch processing job  
     3. Model registration in SageMaker Model Registry
     4. Inference recommendation job (optional)
+    
+    The model supports multiple use cases: navigation and chat
     """
 
     def __init__(
@@ -48,7 +50,7 @@ class NavigationModelTrainingPipeline:
         enable_step_cache=True,
     ):
         # Constants for sample payload
-        SAMPLE_PAYLOAD_FILENAME = "navigation_sample_payload.tar.gz"
+        SAMPLE_PAYLOAD_FILENAME = "gemma3n_sample_payload.tar.gz"
 
         # Pipeline parameters
         export_model_output_s3_uri = ParameterString(
@@ -106,7 +108,7 @@ class NavigationModelTrainingPipeline:
             framework_version=pytorch_version,
             py_version=py_version,
             output_path=final_model_output_s3_uri,
-            base_job_name="navigation-model-preparation",
+            base_job_name="gemma3n-model-preparation",
             sagemaker_session=pipeline_session,
             environment={
                 "HF_TOKEN_SECRET_NAME": hf_token_secret_name,
@@ -121,9 +123,9 @@ class NavigationModelTrainingPipeline:
             cache_config = CacheConfig(enable_caching=True, expire_after="1d")
 
         training_step = TrainingStep(
-            name="PrepareNavigationModel",
-            display_name="Prepare Navigation Model",
-            description="Download and prepare the Gemma3n navigation model using PyTorch training job",
+            name="TrainGemma3nModel",
+            display_name="Train Gemma3n Model",
+            description="Download, prepare and optionally train the Gemma3n",
             estimator=pytorch_estimator,
             cache_config=cache_config,
         )
@@ -139,7 +141,7 @@ class NavigationModelTrainingPipeline:
             role=execution_role,
             instance_type=inference_instance_type,
             instance_count=1,
-            base_job_name="navigation-model-validation",
+            base_job_name="gemma3n-model-validation",
             sagemaker_session=pipeline_session,
             env={
                 "SAMPLE_PAYLOAD_FILENAME": SAMPLE_PAYLOAD_FILENAME
@@ -175,9 +177,9 @@ class NavigationModelTrainingPipeline:
         )
 
         validation_step = ProcessingStep(
-            name="ValidateNavigationModel",
-            display_name="Validate Navigation Model", 
-            description="Validate the prepared navigation model with test inference",
+            name="ValidateGemma3nModel",
+            display_name="Validate Gemma3n Model", 
+            description="Validate the prepared Gemma3n model with test inference for both navigation and chat use cases",
             step_args=step_args,
             depends_on=[training_step],
             cache_config=cache_config,
@@ -205,19 +207,8 @@ class NavigationModelTrainingPipeline:
             instance_type=inference_instance_type
         )
         create_model_step = ModelStep(
-            name="CreateNavigationModel",
-            display_name="Create Navigation Model",
-            description="Create SageMaker Model for deployment",
-            step_args=create_model_step_args,
-            depends_on=[validation_step],
-        )
-
-        create_model_step_args = pytorch_model.create(
-            instance_type=inference_instance_type
-        )
-        create_model_step = ModelStep(
-            name="CreateNavigationModel",
-            display_name="Create Navigation Model",
+            name="CreateGemma3nModel",
+            display_name="Create Gemma3n Model",
             description="Create SageMaker Model for deployment",
             step_args=create_model_step_args,
             depends_on=[validation_step],
@@ -228,7 +219,6 @@ class NavigationModelTrainingPipeline:
             content_types=["application/json"],
             response_types=["application/json"],
             inference_instances=[inference_instance_type],
-            inference_instances=[inference_instance_type],
             model_package_group_name=package_group_name,
             approval_status=approval_status,
             sample_payload_url=sample_payload_s3_uri,
@@ -238,18 +228,9 @@ class NavigationModelTrainingPipeline:
         )
         
         register_model_step = ModelStep(
-            name="RegisterNavigationModel",
-            display_name="Register Navigation Model", 
-            description="Register the validated navigation model in SageMaker Model Registry",
-            step_args=register_model_step_args,
-            depends_on=[create_model_step],
-            customer_metadata_properties={"model_name": create_model_step.properties.ModelName}
-        )
-        
-        register_model_step = ModelStep(
-            name="RegisterNavigationModel",
-            display_name="Register Navigation Model", 
-            description="Register the validated navigation model in SageMaker Model Registry",
+            name="RegisterGemma3nModel",
+            display_name="Register Gemma3n Model", 
+            description="Register the validated Gemma3n foundation model in SageMaker Model Registry",
             step_args=register_model_step_args,
             depends_on=[create_model_step],
         )
@@ -257,7 +238,7 @@ class NavigationModelTrainingPipeline:
         # Step 5: Inference Recommendation (Optional/Non-blocking)
         # Lambda function for creating inference recommendation job
         inference_recommendation_lambda = Lambda(
-            function_name=shared_variables.LAMBDA_NAVIGATION_INFERENCE_RECOMMENDATION,
+            function_name=shared_variables.LAMBDA_GEMMA3N_INFERENCE_RECOMMENDATION,
             execution_role_arn=lambda_execution_role,
             script=f"{shared_variables.BACKEND_DIR}/functions/setup/inference_recommendation/src/inference_recommendation_lambda.py",
             handler="inference_recommendation_lambda.handler",
@@ -284,7 +265,7 @@ class NavigationModelTrainingPipeline:
                 "job_name": Join(
                     on="-",
                     values=[
-                        "navigation-inference-rec",
+                        "gemma3n-inference-rec",
                         ExecutionVariables.PIPELINE_EXECUTION_ID
                     ]
                 ),
@@ -318,7 +299,6 @@ class NavigationModelTrainingPipeline:
                 validation_step, 
                 register_model_step,
                 create_model_step,
-                create_model_step,
                 inference_recommendation_step
             ],
             sagemaker_session=sagemaker_session,
@@ -328,9 +308,9 @@ class NavigationModelTrainingPipeline:
         return self.pipeline
 
 
-class NavigationModelDeploymentPipeline:
+class Gemma3nModelDeploymentPipeline:
     """
-    Navigation Model Deployment Pipeline for deploying approved Gemma3n models.
+    Gemma3n Model Deployment Pipeline for deploying approved foundation models.
     
     This pipeline handles:
     1. Endpoint deployment using approved model package from registry
@@ -338,6 +318,7 @@ class NavigationModelDeploymentPipeline:
     
     The pipeline is triggered by EventBridge when a model is approved in the registry.
     This is the second pipeline in the two-pipeline architecture as specified in the requirements.
+    The deployed endpoint supports both navigation and chat use cases.
     """
 
     def __init__(
@@ -350,7 +331,7 @@ class NavigationModelDeploymentPipeline:
         lambda_execution_role,
         region,
         sagemaker_session,
-        default_endpoint_name="vis-assis-navigation-endpoint"
+        default_endpoint_name="vis-assis-gemma3n-endpoint"
     ):
 
         # Pipeline parameters - model package ARN provided by EventBridge trigger
@@ -394,19 +375,18 @@ class NavigationModelDeploymentPipeline:
         # Lambda function for deploying the endpoint from model package
         # TODO: replace by built-in Step for endpoint deployment when SageMaker SDK supports it
         deploy_lambda = Lambda(
-            function_name=shared_variables.LAMBDA_DEPLOY_NAVIGATION_ENDPOINT,
+            function_name=shared_variables.LAMBDA_DEPLOY_GEMMA3N_ENDPOINT,
             execution_role_arn=lambda_execution_role,
-            script=f"{shared_variables.BACKEND_DIR}/functions/setup/deploy_navigation_endpoint/src/endpoint_deployment_lambda.py",
+            script=f"{shared_variables.BACKEND_DIR}/functions/setup/deploy_gemma3n_endpoint/src/endpoint_deployment_lambda.py",
             handler="endpoint_deployment_lambda.handler",
             timeout=900,  # 15 minutes timeout for endpoint deployment
-            memory_size=128,
             memory_size=128,
         )
 
         deploy_step = LambdaStep(
-            name="DeployNavigationEndpoint",
-            display_name="Deploy Navigation Endpoint",
-            description="Deploy the navigation model as a SageMaker endpoint from approved model package",
+            name="DeployGemma3nEndpoint",
+            display_name="Deploy Gemma3n Endpoint",
+            description="Deploy the Gemma3n foundation model as a SageMaker endpoint from approved model package",
             lambda_func=deploy_lambda,
             inputs={
                 "model_package_arn": model_package_arn,
@@ -419,9 +399,9 @@ class NavigationModelDeploymentPipeline:
         # Step 2: Configure autoscaling using Lambda function
         # Lambda function for configuring endpoint autoscaling
         autoscaling_lambda = Lambda(
-            function_name=shared_variables.LAMBDA_SETUP_NAVIGATION_ENDPOINT_AUTOSCALING,
+            function_name=shared_variables.LAMBDA_SETUP_GEMMA3N_ENDPOINT_AUTOSCALING,
             execution_role_arn=lambda_execution_role,
-            script=f"{shared_variables.BACKEND_DIR}/functions/setup/setup_navigation_endpoint_autoscaling/src/endpoint_autoscaling_lambda.py",
+            script=f"{shared_variables.BACKEND_DIR}/functions/setup/setup_gemma3n_endpoint_autoscaling/src/endpoint_autoscaling_lambda.py",
             handler="endpoint_autoscaling_lambda.handler",
             timeout=900,  # 15 minutes timeout
             memory_size=128,
@@ -430,7 +410,7 @@ class NavigationModelDeploymentPipeline:
         autoscaling_step = LambdaStep(
             name="ConfigureAutoscaling",
             display_name="Configure Endpoint Autoscaling",
-            description="Configure autoscaling policies for the deployed navigation endpoint",
+            description="Configure autoscaling policies for the deployed Gemma3n endpoint",
             lambda_func=autoscaling_lambda,
             inputs={
                 "endpoint_name": endpoint_name,

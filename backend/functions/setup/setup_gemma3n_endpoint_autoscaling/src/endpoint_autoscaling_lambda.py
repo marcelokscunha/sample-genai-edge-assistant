@@ -6,7 +6,7 @@ from botocore.exceptions import ClientError
 
 def handler(event, context):
     """
-    Lambda function to configure autoscaling for navigation endpoints within SageMaker pipeline context.
+    Lambda function to configure autoscaling for Gemma3n endpoints within SageMaker pipeline context.
     """
     print(f"Received event: {json.dumps(event, indent=2)}")
     
@@ -84,7 +84,7 @@ def setup_auto_scaling(endpoint_name, min_capacity=1, max_capacity=2, target_val
     
     # Create the scaling policy
     application_autoscaling_client.put_scaling_policy(
-        PolicyName=f"NavigationEndpointScalingPolicy-{endpoint_name}",
+        PolicyName=f"Gemma3nEndpointScalingPolicy-{endpoint_name}",
         ServiceNamespace="sagemaker",
         ResourceId=resource_id,
         ScalableDimension="sagemaker:variant:DesiredInstanceCount",

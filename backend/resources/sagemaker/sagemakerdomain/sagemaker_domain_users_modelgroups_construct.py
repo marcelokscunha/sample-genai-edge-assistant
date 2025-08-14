@@ -284,12 +284,12 @@ class SagemakerDomainUsersModelGroupsConstruct(Construct):
             export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
         )
 
-        # Navigation
-        self.navigation_model_package_group = sagemaker.CfnModelPackageGroup(
+        # Gemma3n Foundation Model
+        self.gemma3n_model_package_group = sagemaker.CfnModelPackageGroup(
             self,
-            "NavigationModelPackageGroup",
-            model_package_group_name=shared_variables.CDK_OUT_KEY_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
-            model_package_group_description="Package group for visual assistant navigation models.",
+            "Gemma3nModelPackageGroup",
+            model_package_group_name=shared_variables.CDK_OUT_KEY_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
+            model_package_group_description="Package group for Gemma3n foundation model supporting navigation and chat use cases.",
             tags=[
                 CfnTag(
                     key="sagemaker:domain-arn",
@@ -300,7 +300,7 @@ class SagemakerDomainUsersModelGroupsConstruct(Construct):
 
         CfnOutput(
             self,
-            shared_variables.CDK_OUT_KEY_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
-            value=self.navigation_model_package_group.model_package_group_name,
-            export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
+            shared_variables.CDK_OUT_KEY_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
+            value=self.gemma3n_model_package_group.model_package_group_name,
+            export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
         )

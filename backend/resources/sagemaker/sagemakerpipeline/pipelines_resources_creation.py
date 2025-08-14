@@ -9,8 +9,8 @@ from sagemaker.workflow.pipeline_context import PipelineSession
 import shared_variables as shared_variables
 from pipelines.generic_download_pack_pipeline_definition import \
     GenericDownloadAndPackPipeline
-from pipelines.navigation_pipeline_definition import \
-    NavigationModelTrainingPipeline, NavigationModelDeploymentPipeline
+from pipelines.gemma3n_pipeline_definition import \
+    Gemma3nModelTrainingPipeline, Gemma3nModelDeploymentPipeline
 
 # ANSI escape code for green text
 GREEN = "\033[92m"
@@ -64,9 +64,9 @@ SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME = get_output_value(
     outputs,
     shared_variables.CDK_OUT_EXPORT_SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
 )
-SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME = get_output_value(
+SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME = get_output_value(
     outputs,
-    shared_variables.CDK_OUT_EXPORT_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
+    shared_variables.CDK_OUT_EXPORT_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
 )
 USER_SAGEMAKER_TEAM = get_output_value(
     outputs, shared_variables.CDK_OUT_EXPORT_USER_SAGEMAKER_TEAM
@@ -102,7 +102,7 @@ print(SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME)
-print(SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME)
+print(SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME)
 print(EXECUTION_ROLE)
 print(LAMBDA_EXECUTION_ROLE)
 print(HF_TOKEN_SECRET_NAME)
@@ -289,56 +289,56 @@ pipeline_session = PipelineSession(boto_session=boto_session, sagemaker_client=s
 #     )
 # print("\n\n")
 
-# Deploy the navigation model deployment pipeline FIRST
+# Deploy the Gemma3n model deployment pipeline FIRST
 # This ensures the deployment pipeline exists when the preparation pipeline approves models
-# This pipeline is triggered by EventBridge when navigation models are approved, not manually
-navigation_deployment_pipeline = NavigationModelDeploymentPipeline(
-    pipeline_name=shared_variables.BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME,
+# This pipeline is triggered by EventBridge when Gemma3n models are approved, not manually
+gemma3n_deployment_pipeline = Gemma3nModelDeploymentPipeline(
+    pipeline_name=shared_variables.BOTO3_GEMMA3N_DEPLOYMENT_PIPELINE_NAME,
     output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
-    prefix_bucket_path="navigation",
+    prefix_bucket_path="gemma3n",
     pipeline_session=pipeline_session,
     execution_role=EXECUTION_ROLE,
     lambda_execution_role=LAMBDA_EXECUTION_ROLE,
     region=REGION,
     sagemaker_session=sagemaker_session,
-    default_endpoint_name=shared_variables.NAVIGATION_ENDPOINT_NAME
+    default_endpoint_name=shared_variables.GEMMA3N_ENDPOINT_NAME
 ).get_pipeline()
 
-pipeline_response = navigation_deployment_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
-navigation_deployment_pipeline_arn = pipeline_response["PipelineArn"]
+pipeline_response = gemma3n_deployment_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+gemma3n_deployment_pipeline_arn = pipeline_response["PipelineArn"]
 
 print(
-    f"{GREEN}Navigation deployment pipeline created or updated with ARN: {navigation_deployment_pipeline_arn}{RESET}"
+    f"{GREEN}Gemma3n deployment pipeline created or updated with ARN: {gemma3n_deployment_pipeline_arn}{RESET}"
 )
-# Note: Deployment pipeline is NOT triggered manually - it's triggered automatically by EventBridge when navigation models are approved in the Model Registry
-print(f"{GREEN}Navigation deployment pipeline will be triggered automatically by EventBridge when navigation models are approved{RESET}")
+# Note: Deployment pipeline is NOT triggered manually - it's triggered automatically by EventBridge when Gemma3n models are approved in the Model Registry
+print(f"{GREEN}Gemma3n deployment pipeline will be triggered automatically by EventBridge when Gemma3n models are approved{RESET}")
 print("\n\n")
 
-# Deploy the navigation model preparation pipeline
-navigation_preparation_pipeline = NavigationModelTrainingPipeline(
-    pipeline_name=shared_variables.BOTO3_NAVIGATION_PREPARATION_PIPELINE_NAME,
+# Deploy the Gemma3n model preparation pipeline
+gemma3n_preparation_pipeline = Gemma3nModelTrainingPipeline(
+    pipeline_name=shared_variables.BOTO3_GEMMA3N_PREPARATION_PIPELINE_NAME,
     input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
     output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
-    prefix_bucket_path="navigation",
+    prefix_bucket_path="gemma3n",
     pipeline_session=pipeline_session,
-    package_group_name_p=SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
+    package_group_name_p=SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     lambda_execution_role=LAMBDA_EXECUTION_ROLE,
     region=REGION,
-    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/navigation/script/src",
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/gemma3n/script/src",
     sagemaker_session=sagemaker_session,
     default_hf_token_secret_name=HF_TOKEN_SECRET_NAME
 ).get_pipeline()
 
-pipeline_response = navigation_preparation_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
-navigation_preparation_pipeline_arn = pipeline_response["PipelineArn"]
+pipeline_response = gemma3n_preparation_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+gemma3n_preparation_pipeline_arn = pipeline_response["PipelineArn"]
 
 print(
-    f"{GREEN}Navigation preparation pipeline created or updated with ARN: {navigation_preparation_pipeline_arn}{RESET}"
+    f"{GREEN}Gemma3n preparation pipeline created or updated with ARN: {gemma3n_preparation_pipeline_arn}{RESET}"
 )
 
 if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
     print(
-        f"{GREEN}Navigation training pipeline must be triggered manually (to avoid higher costs and ensure correct secrets usage)!"
+        f"{GREEN}Gemma3n training pipeline must be triggered manually (to avoid higher costs and ensure correct secrets usage)!"
     )
 print("\n\n")
