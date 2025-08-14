@@ -4,6 +4,7 @@
 import aws_cdk.aws_apigatewayv2 as apigatewayv2
 import shared_variables as shared_variables
 from aws_cdk import CfnOutput, Duration, RemovalPolicy
+from aws_cdk import aws_certificatemanager as acm
 from aws_cdk import aws_cognito as cognito_
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_iam as iam
@@ -12,6 +13,7 @@ from aws_cdk import aws_logs as logs
 from aws_cdk.aws_apigatewayv2_authorizers import HttpUserPoolAuthorizer
 from aws_cdk.aws_apigatewayv2_integrations import HttpLambdaIntegration
 from constructs import Construct
+from typing import Optional
 
 
 class API(Construct):
@@ -26,6 +28,8 @@ class API(Construct):
         cognito_user_pool: cognito_.CfnUserPool,
         cognito_user_pool_client: cognito_.CfnUserPoolClient,
         trusted_origins,
+        custom_domain_name: Optional[str] = None,
+        certificate_arn: Optional[str] = None,
     ):
         super().__init__(scope, id_)
 
@@ -59,6 +63,41 @@ class API(Construct):
                 max_age=Duration.days(10),
             ),
         )
+
+        #########################################
+        ########### Custom Domain (Optional) ####
+        #########################################
+
+        if custom_domain_name and certificate_arn:
+            # Import existing certificate
+            certificate = acm.Certificate.from_certificate_arn(
+                self, "ApiCertificate", certificate_arn
+            )
+            
+            # Create custom domain
+            domain = apigatewayv2.DomainName(
+                self,
+                "ApiCustomDomain",
+                domain_name=custom_domain_name,
+                certificate=certificate,
+            )
+            
+            # Map the domain to the API
+            apigatewayv2.ApiMapping(
+                self,
+                "ApiMapping",
+                api=self.api,
+                domain_name=domain,
+                stage=self.api.default_stage,
+            )
+            
+            # Output the custom domain URL
+            CfnOutput(
+                self,
+                "CustomDomainUrl",
+                value=f"https://{custom_domain_name}",
+                description="Custom domain URL for the API",
+            )
 
         #########################################
         ########### Create the log group #######

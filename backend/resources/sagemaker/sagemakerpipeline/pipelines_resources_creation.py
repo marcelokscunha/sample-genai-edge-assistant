@@ -9,6 +9,8 @@ from sagemaker.workflow.pipeline_context import PipelineSession
 import shared_variables as shared_variables
 from pipelines.generic_download_pack_pipeline_definition import \
     GenericDownloadAndPackPipeline
+from pipelines.navigation_pipeline_definition import \
+    NavigationModelTrainingPipeline, NavigationModelDeploymentPipeline
 
 # ANSI escape code for green text
 GREEN = "\033[92m"
@@ -62,6 +64,10 @@ SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME = get_output_value(
     outputs,
     shared_variables.CDK_OUT_EXPORT_SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
 )
+SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME = get_output_value(
+    outputs,
+    shared_variables.CDK_OUT_EXPORT_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
+)
 USER_SAGEMAKER_TEAM = get_output_value(
     outputs, shared_variables.CDK_OUT_EXPORT_USER_SAGEMAKER_TEAM
 )
@@ -74,6 +80,15 @@ SAGEMAKER_DOMAIN_ARN = get_output_value(
 EXECUTION_ROLE = get_output_value(
     outputs, shared_variables.CDK_OUT_EXPORT_SAGEMAKER_EXECUTION_ROLE_ARN
 )
+LAMBDA_EXECUTION_ROLE = get_output_value(
+    outputs, shared_variables.CDK_OUT_EXPORT_SAGEMAKER_PIPELINE_LAMBDA_ROLE_ARN
+)
+HF_TOKEN_SECRET_NAME = get_output_value(
+    outputs, shared_variables.CDK_OUT_EXPORT_DEFAULT_HF_TOKEN_SECRET_NAME
+)
+
+# Add tags for all pipelines allowing only created Domain to visualize them
+domain_tag = {"Key": "sagemaker:domain-arn", "Value": SAGEMAKER_DOMAIN_ARN}
 
 print("\n\n")
 print("#########################")
@@ -87,7 +102,10 @@ print(SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME)
+print(SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME)
 print(EXECUTION_ROLE)
+print(LAMBDA_EXECUTION_ROLE)
+print(HF_TOKEN_SECRET_NAME)
 print("********\n\n")
 
 
@@ -106,169 +124,221 @@ pipeline_session = PipelineSession(boto_session=boto_session, sagemaker_client=s
 ##### PIPELINE DEFINITIONS ######
 #################################
 
-domain_tag = {"Key": "sagemaker:domain-arn", "Value": SAGEMAKER_DOMAIN_ARN}
+# # Deploy the depth model pipeline
+# depth_pipeline = GenericDownloadAndPackPipeline(
+#     pipeline_name=shared_variables.BOTO3_DEPTH_PIPELINE_NAME,
+#     input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
+#     output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+#     prefix_bucket_path="depth",
+#     pipeline_session=pipeline_session,
+#     package_group_name_p=SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME,
+#     execution_role=EXECUTION_ROLE,
+#     region=REGION,
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
+#     script_name="depth_script.py",
+#     sagemaker_session=sagemaker_session,
+# ).get_pipeline()
 
-# Deploy the depth model pipeline
-depth_pipeline = GenericDownloadAndPackPipeline(
-    pipeline_name=shared_variables.BOTO3_DEPTH_PIPELINE_NAME,
-    input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
+# pipeline_response = depth_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+# depth_train_pipeline_arn = pipeline_response["PipelineArn"]
+# print(
+#     f"{GREEN}Depth pipeline created or updated with ARN: {depth_train_pipeline_arn}{RESET}"
+# )
+
+# if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+#     if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+#         pipeline_execution = depth_pipeline.start({"DefaultApprovalStatus": "Approved"})
+#     else:
+#         pipeline_execution = depth_pipeline.start()
+#     print(
+#         f"{GREEN}Depth pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+#     )
+# print("\n\n")
+
+
+# # Deploy the image captioning model pipeline
+# image_captioning_pipeline = GenericDownloadAndPackPipeline(
+#     pipeline_name=shared_variables.BOTO3_IMAGE_CAPTIONING_PIPELINE_NAME,
+#     input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
+#     output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+#     prefix_bucket_path="image-captioning",
+#     pipeline_session=pipeline_session,
+#     package_group_name_p=SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME,
+#     execution_role=EXECUTION_ROLE,
+#     region=REGION,
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
+#     script_name="ic_script.py",
+#     sagemaker_session=sagemaker_session,
+# ).get_pipeline()
+
+# pipeline_response = image_captioning_pipeline.upsert(
+#     role_arn=EXECUTION_ROLE, tags=[domain_tag]
+# )
+# image_captioning_pipeline_arn = pipeline_response["PipelineArn"]
+# print(
+#     f"{GREEN}Image captioning pipeline created or updated with ARN: {image_captioning_pipeline_arn}{RESET}"
+# )
+
+# if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+#     if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+#         pipeline_execution = image_captioning_pipeline.start({"DefaultApprovalStatus": "Approved"})
+#     else:
+#         pipeline_execution = image_captioning_pipeline.start()
+#     print(
+#         f"{GREEN}Image captioning pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+#     )
+# print("\n\n")
+
+
+# # Deploy the object detection model pipeline
+# object_detection_pipeline = GenericDownloadAndPackPipeline(
+#     pipeline_name=shared_variables.BOTO3_OBJECT_DETECTION_PIPELINE_NAME,
+#     input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
+#     output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+#     prefix_bucket_path="object-detection",
+#     pipeline_session=pipeline_session,
+#     package_group_name_p=SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
+#     execution_role=EXECUTION_ROLE,
+#     region=REGION,
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
+#     script_name="od_script.py",
+#     sagemaker_session=sagemaker_session,
+# ).get_pipeline()
+
+# pipeline_response = object_detection_pipeline.upsert(
+#     role_arn=EXECUTION_ROLE, tags=[domain_tag]
+# )
+# object_detection_pipeline_arn = pipeline_response["PipelineArn"]
+
+# print(
+#     f"{GREEN}Object detection pipeline created or updated with ARN: {object_detection_pipeline_arn}{RESET}"
+# )
+
+# if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+#     if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+#         pipeline_execution = object_detection_pipeline.start({"DefaultApprovalStatus": "Approved"})
+#     else:
+#         pipeline_execution = object_detection_pipeline.start()
+#     print(
+#         f"{GREEN}Object detection pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+#     )
+# print("\n\n")
+
+
+# # Deploy the TTS model pipeline
+# tts_pipeline = GenericDownloadAndPackPipeline(
+#     pipeline_name=shared_variables.BOTO3_TTS_PIPELINE_NAME,
+#     input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
+#     output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+#     prefix_bucket_path="tts",
+#     pipeline_session=pipeline_session,
+#     package_group_name_p=SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME,
+#     execution_role=EXECUTION_ROLE,
+#     region=REGION,
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
+#     script_name="tts_script.py",
+#     sagemaker_session=sagemaker_session,
+# ).get_pipeline()
+
+# pipeline_response = tts_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+# tts_pipeline_arn = pipeline_response["PipelineArn"]
+
+# print(f"{GREEN}TTS pipeline created or updated with ARN: {tts_pipeline_arn}{RESET}")
+
+# if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+#     if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+#         pipeline_execution = tts_pipeline.start({"DefaultApprovalStatus": "Approved"})
+#     else:
+#         pipeline_execution = tts_pipeline.start()
+#     print(
+#         f"{GREEN}TTS pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+#     )
+# print("\n\n")
+
+
+# # Deploy the vocoder model pipeline
+# vocoder_pipeline = GenericDownloadAndPackPipeline(
+#     pipeline_name=shared_variables.BOTO3_VOCODER_PIPELINE_NAME,
+#     input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
+#     output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+#     prefix_bucket_path="vocoder",
+#     pipeline_session=pipeline_session,
+#     package_group_name_p=SAGEMAKER_VOCODER_MODEL_PACKAGE_GROUP_NAME,
+#     execution_role=EXECUTION_ROLE,
+#     region=REGION,
+#     script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
+#     script_name="vocoder_script.py",
+#     sagemaker_session=sagemaker_session,
+# ).get_pipeline()
+
+# pipeline_response = vocoder_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+# vocoder_pipeline_arn = pipeline_response["PipelineArn"]
+
+# print(
+#     f"{GREEN}Vocoder pipeline created or updated with ARN: {vocoder_pipeline_arn}{RESET}"
+# )
+
+
+# if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+#     if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+#         pipeline_execution = vocoder_pipeline.start({"DefaultApprovalStatus": "Approved"})
+#     else:
+#         pipeline_execution = vocoder_pipeline.start()
+#     print(
+#         f"{GREEN}Vocoder pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+#     )
+# print("\n\n")
+
+# Deploy the navigation model deployment pipeline FIRST
+# This ensures the deployment pipeline exists when the preparation pipeline approves models
+# This pipeline is triggered by EventBridge when navigation models are approved, not manually
+navigation_deployment_pipeline = NavigationModelDeploymentPipeline(
+    pipeline_name=shared_variables.BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME,
     output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
-    prefix_bucket_path="depth",
+    prefix_bucket_path="navigation",
     pipeline_session=pipeline_session,
-    package_group_name_p=SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
+    lambda_execution_role=LAMBDA_EXECUTION_ROLE,
     region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
-    script_name="depth_script.py",
     sagemaker_session=sagemaker_session,
+    default_endpoint_name=shared_variables.NAVIGATION_ENDPOINT_NAME
 ).get_pipeline()
 
-pipeline_response = depth_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
-depth_train_pipeline_arn = pipeline_response["PipelineArn"]
-print(
-    f"{GREEN}Depth pipeline created or updated with ARN: {depth_train_pipeline_arn}{RESET}"
-)
+pipeline_response = navigation_deployment_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+navigation_deployment_pipeline_arn = pipeline_response["PipelineArn"]
 
-if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
-        pipeline_execution = depth_pipeline.start({"DefaultApprovalStatus": "Approved"})
-    else:
-        pipeline_execution = depth_pipeline.start()
-    print(
-        f"{GREEN}Depth pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
-    )
+print(
+    f"{GREEN}Navigation deployment pipeline created or updated with ARN: {navigation_deployment_pipeline_arn}{RESET}"
+)
+# Note: Deployment pipeline is NOT triggered manually - it's triggered automatically by EventBridge when navigation models are approved in the Model Registry
+print(f"{GREEN}Navigation deployment pipeline will be triggered automatically by EventBridge when navigation models are approved{RESET}")
 print("\n\n")
 
-
-# Deploy the image captioning model pipeline
-image_captioning_pipeline = GenericDownloadAndPackPipeline(
-    pipeline_name=shared_variables.BOTO3_IMAGE_CAPTIONING_PIPELINE_NAME,
+# Deploy the navigation model preparation pipeline
+navigation_preparation_pipeline = NavigationModelTrainingPipeline(
+    pipeline_name=shared_variables.BOTO3_NAVIGATION_PREPARATION_PIPELINE_NAME,
     input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
     output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
-    prefix_bucket_path="image-captioning",
+    prefix_bucket_path="navigation",
     pipeline_session=pipeline_session,
-    package_group_name_p=SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME,
+    package_group_name_p=SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
+    lambda_execution_role=LAMBDA_EXECUTION_ROLE,
     region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
-    script_name="ic_script.py",
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/navigation/script/src",
     sagemaker_session=sagemaker_session,
+    default_hf_token_secret_name=HF_TOKEN_SECRET_NAME
 ).get_pipeline()
 
-pipeline_response = image_captioning_pipeline.upsert(
-    role_arn=EXECUTION_ROLE, tags=[domain_tag]
-)
-image_captioning_pipeline_arn = pipeline_response["PipelineArn"]
-print(
-    f"{GREEN}Image captioning pipeline created or updated with ARN: {image_captioning_pipeline_arn}{RESET}"
-)
-
-if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
-        pipeline_execution = image_captioning_pipeline.start({"DefaultApprovalStatus": "Approved"})
-    else:
-        pipeline_execution = image_captioning_pipeline.start()
-    print(
-        f"{GREEN}Image captioning pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
-    )
-print("\n\n")
-
-
-# Deploy the object detection model pipeline
-object_detection_pipeline = GenericDownloadAndPackPipeline(
-    pipeline_name=shared_variables.BOTO3_OBJECT_DETECTION_PIPELINE_NAME,
-    input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
-    output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
-    prefix_bucket_path="object-detection",
-    pipeline_session=pipeline_session,
-    package_group_name_p=SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
-    execution_role=EXECUTION_ROLE,
-    region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
-    script_name="od_script.py",
-    sagemaker_session=sagemaker_session,
-).get_pipeline()
-
-pipeline_response = object_detection_pipeline.upsert(
-    role_arn=EXECUTION_ROLE, tags=[domain_tag]
-)
-object_detection_pipeline_arn = pipeline_response["PipelineArn"]
+pipeline_response = navigation_preparation_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+navigation_preparation_pipeline_arn = pipeline_response["PipelineArn"]
 
 print(
-    f"{GREEN}Object detection pipeline created or updated with ARN: {object_detection_pipeline_arn}{RESET}"
+    f"{GREEN}Navigation preparation pipeline created or updated with ARN: {navigation_preparation_pipeline_arn}{RESET}"
 )
 
 if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
-        pipeline_execution = object_detection_pipeline.start({"DefaultApprovalStatus": "Approved"})
-    else:
-        pipeline_execution = object_detection_pipeline.start()
     print(
-        f"{GREEN}Object detection pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
-    )
-print("\n\n")
-
-
-# Deploy the TTS model pipeline
-tts_pipeline = GenericDownloadAndPackPipeline(
-    pipeline_name=shared_variables.BOTO3_TTS_PIPELINE_NAME,
-    input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
-    output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
-    prefix_bucket_path="tts",
-    pipeline_session=pipeline_session,
-    package_group_name_p=SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME,
-    execution_role=EXECUTION_ROLE,
-    region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
-    script_name="tts_script.py",
-    sagemaker_session=sagemaker_session,
-).get_pipeline()
-
-pipeline_response = tts_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
-tts_pipeline_arn = pipeline_response["PipelineArn"]
-
-print(f"{GREEN}TTS pipeline created or updated with ARN: {tts_pipeline_arn}{RESET}")
-
-if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
-        pipeline_execution = tts_pipeline.start({"DefaultApprovalStatus": "Approved"})
-    else:
-        pipeline_execution = tts_pipeline.start()
-    print(
-        f"{GREEN}TTS pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
-    )
-print("\n\n")
-
-
-# Deploy the vocoder model pipeline
-vocoder_pipeline = GenericDownloadAndPackPipeline(
-    pipeline_name=shared_variables.BOTO3_VOCODER_PIPELINE_NAME,
-    input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
-    output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
-    prefix_bucket_path="vocoder",
-    pipeline_session=pipeline_session,
-    package_group_name_p=SAGEMAKER_VOCODER_MODEL_PACKAGE_GROUP_NAME,
-    execution_role=EXECUTION_ROLE,
-    region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
-    script_name="vocoder_script.py",
-    sagemaker_session=sagemaker_session,
-).get_pipeline()
-
-pipeline_response = vocoder_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
-vocoder_pipeline_arn = pipeline_response["PipelineArn"]
-
-print(
-    f"{GREEN}Vocoder pipeline created or updated with ARN: {vocoder_pipeline_arn}{RESET}"
-)
-
-
-if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
-    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
-        pipeline_execution = vocoder_pipeline.start({"DefaultApprovalStatus": "Approved"})
-    else:
-        pipeline_execution = vocoder_pipeline.start()
-    print(
-        f"{GREEN}Vocoder pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+        f"{GREEN}Navigation training pipeline must be triggered manually (to avoid higher costs and ensure correct secrets usage)!"
     )
 print("\n\n")

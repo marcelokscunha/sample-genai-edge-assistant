@@ -11,7 +11,7 @@ from sagemaker.workflow.functions import Join
 from sagemaker.workflow.parameters import ParameterString
 from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.step_collections import RegisterModel
-from sagemaker.workflow.steps import ProcessingStep
+from sagemaker.workflow.steps import ProcessingStep, CacheConfig
 
 
 class GenericDownloadAndPackPipeline:
@@ -30,6 +30,7 @@ class GenericDownloadAndPackPipeline:
         script_name,
         sagemaker_session,
         default_approval_status="PendingManualApproval",
+        enable_step_cache=False,
     ):
 
         export_model_output_s3_uri = ParameterString(
@@ -66,6 +67,11 @@ class GenericDownloadAndPackPipeline:
             ],
         )
 
+        cache_config = None
+        if enable_step_cache:
+            # Cache configuration for development efficiency
+            cache_config = CacheConfig(enable_caching=True, expire_after="30d")
+
         # Processing/training Step
         processing_step = ProcessingStep(
             name="DownloadAndPackModel",
@@ -79,6 +85,7 @@ class GenericDownloadAndPackPipeline:
                 )
             ],
             code=script_path,
+            cache_config=cache_config,
         )
 
         # Model Artifacts S3 URI

@@ -283,3 +283,24 @@ class SagemakerDomainUsersModelGroupsConstruct(Construct):
             value=self.object_detection_model_package_group.model_package_group_name,
             export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
         )
+
+        # Navigation
+        self.navigation_model_package_group = sagemaker.CfnModelPackageGroup(
+            self,
+            "NavigationModelPackageGroup",
+            model_package_group_name=shared_variables.CDK_OUT_KEY_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
+            model_package_group_description="Package group for visual assistant navigation models.",
+            tags=[
+                CfnTag(
+                    key="sagemaker:domain-arn",
+                    value=self.sagemaker_domain.attr_domain_arn,
+                )
+            ],
+        )
+
+        CfnOutput(
+            self,
+            shared_variables.CDK_OUT_KEY_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
+            value=self.navigation_model_package_group.model_package_group_name,
+            export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_NAVIGATION_MODEL_PACKAGE_GROUP_NAME,
+        )

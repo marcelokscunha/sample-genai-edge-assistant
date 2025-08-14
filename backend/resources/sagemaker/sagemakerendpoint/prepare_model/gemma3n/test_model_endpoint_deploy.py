@@ -47,11 +47,8 @@ def deploy_model(
         
     else:
         print("Configured cloud deployment...")
-        instance_type = "ml.m5.xlarge"
 
-        # instance_type = "ml.m6g.xlarge"
-        # pytorch_version: str ="2.4.0"  # (current latest for graviton)
-        # py_version: str ="py311",      # (current latest for graviton)
+        instance_type = "ml.g6.xlarge"
 
         # Initialize SageMaker session
         sagemaker_session = sagemaker.Session()
@@ -90,8 +87,11 @@ def deploy_model(
 if __name__ == "__main__":
     HERE = pathlib.Path(__file__).parent
 
-    # Get IAM role
-    role = sagemaker.get_execution_role() if sagemaker.get_execution_role() else "arn:aws:iam::111111111111:role/service-role/AmazonSageMaker-ExecutionRole-20200101T000001"
+    # Get IAM role - use existing SageMaker execution role
+    role = sagemaker.get_execution_role()
+    print(f"Using SageMaker execution role from environment: {role}")
+    # If you don't have enough permissions, just replace "sagemaker.get_execution_role()" with one of the existing SageMaker execution roles from your account
+
     artifacts_file = (pathlib.Path(__file__).parent / "ARTIFACTS" / "package" / "model.tar.gz").absolute()
     code_dir = (HERE / "src").absolute()
 

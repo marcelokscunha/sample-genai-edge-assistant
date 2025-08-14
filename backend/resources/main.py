@@ -16,7 +16,7 @@
 import json
 
 import shared_variables as shared_variables
-from aws_cdk import Aws, CfnOutput, Duration, RemovalPolicy, Stack
+from aws_cdk import Aws, CfnOutput, Duration, RemovalPolicy, Stack, SecretValue
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
@@ -25,6 +25,7 @@ from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_sagemaker as sagemaker
+from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import custom_resources as cr
 from cdk_nag import NagSuppressions
 from constructs import Construct
@@ -84,6 +85,12 @@ class MyStack(Stack):
         amplify_app_id = self.node.try_get_context("amplify_app_id")
         no_amplify = str(self.node.try_get_context("no_amplify"))
         import_existing_s3_buckets_cli = str(self.node.try_get_context("import_s3"))
+        
+        # Custom domain configuration (optional)
+        # To use a custom domain, provide both parameters:
+        # --context custom_domain_name=api.yourdomain.com --context certificate_arn=arn:aws:acm:...
+        custom_domain_name = self.node.try_get_context("custom_domain_name")
+        certificate_arn = self.node.try_get_context("certificate_arn")
 
         if import_existing_s3_buckets_cli == "y":
             print("🪣 Importing existing S3 buckets")
@@ -102,6 +109,25 @@ class MyStack(Stack):
                 )
             amplify_app_id = str(amplify_app_id)
             amplify_install = True
+
+        # Centralized CORS origins configuration
+        cors_allowed_origins = []
+        if custom_domain_name:
+            cors_allowed_origins.append(f"https://{custom_domain_name}")
+
+        else:
+            # Add custom domain to CORS origins if provided (when no custom domain)
+            # Add new Amplify branch URLs here to allow CORS access
+            base_origins = (
+                [
+                    f"https://main.{amplify_app_id}.amplifyapp.com",
+                    f"https://feature-simplify-deployment.{amplify_app_id}.amplifyapp.com",
+                    "http://localhost:3000",
+                ]
+                if amplify_install
+                else CUSTOM_ALLOWED_RESOURCES
+            )
+            cors_allowed_origins.extend(base_origins)
 
         ####### METADATA ########
 
@@ -370,17 +396,7 @@ class MyStack(Stack):
                     s3.CorsRule(
                         allowed_methods=[s3.HttpMethods.GET, s3.HttpMethods.POST],
                         exposed_headers=["ETag"],
-                        allowed_origins=(
-                            [
-                                f"https://main.{amplify_app_id}.amplifyapp.com",
-                                f"https://dev-newest.{amplify_app_id}.amplifyapp.com",
-                                f"https://test.{amplify_app_id}.amplifyapp.com",
-                                f"https://open-source.{amplify_app_id}.amplifyapp.com",
-                                "http://localhost:3000",
-                            ]
-                            if amplify_install
-                            else CUSTOM_ALLOWED_RESOURCES
-                        ),
+                        allowed_origins=cors_allowed_origins,
                         allowed_headers=[
                             "Authorization",
                             "Content-Type",
@@ -482,6 +498,55 @@ class MyStack(Stack):
             value=sagemaker_execution_role.role_arn,
             description="The sagemaker execution role ARN",
             export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_EXECUTION_ROLE_ARN,
+        )
+
+        ########## SECRETS MANAGER ############
+        
+        # Create Hugging Face token secret with placeholder value
+        # Users need to manually update this secret with their actual Hugging Face token
+        hf_token_secret = secretsmanager.Secret(
+            self,
+            "HuggingFaceTokenSecret",
+            secret_name=f"{self.stack_name}/huggingface-token",
+            description="Hugging Face token for model downloads. Replace with your actual token.",
+            secret_object_value={"token": SecretValue.unsafe_plain_text("REPLACE-WITH-YOUR-HF-TOKEN")},
+        )
+        
+        # Grant SageMaker execution role access to Hugging Face token secret
+        hf_token_secret.grant_read(sagemaker_execution_role)
+        
+        # Add explicit Secrets Manager permissions to ensure access
+        sagemaker_execution_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret",
+                ],
+                resources=[hf_token_secret.secret_arn],
+            )
+        )
+        
+        # Add Lambda invoke permissions for SageMaker pipeline Lambda steps
+        sagemaker_execution_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "lambda:InvokeFunction",
+                ],
+                resources=[
+                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_NAVIGATION_INFERENCE_RECOMMENDATION}",
+                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_DEPLOY_NAVIGATION_ENDPOINT}",
+                    f"arn:aws:lambda:{self.region}:{self.account}:function:{shared_variables.LAMBDA_SETUP_NAVIGATION_ENDPOINT_AUTOSCALING}",
+                ],
+            )
+        )
+        
+        # Output the secret name for user reference
+        CfnOutput(
+            self,
+            shared_variables.CDK_OUT_KEY_DEFAULT_HF_TOKEN_SECRET_NAME,
+            value=hf_token_secret.secret_name,
+            description="Name of the Secrets Manager secret containing the Hugging Face token. Update this with your actual token.",
+            export_name=shared_variables.CDK_OUT_EXPORT_DEFAULT_HF_TOKEN_SECRET_NAME,
         )
 
         ########## COGNITO ############
@@ -688,6 +753,75 @@ class MyStack(Stack):
                 }
             ],
         )
+
+        ########## SAGEMAKER PIPELINE LAMBDA EXECUTION ROLE #############
+        
+        # Create Lambda execution role for SageMaker pipeline functions
+        sagemaker_pipeline_lambda_role = iam.Role(
+            self,
+            "SageMakerPipelineLambdaExecutionRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ],
+        )
+
+        # Add SageMaker permissions for pipeline Lambda functions
+        sagemaker_pipeline_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "sagemaker:CreateEndpoint",
+                    "sagemaker:CreateEndpointConfig",
+                    "sagemaker:CreateModel",
+                    "sagemaker:DescribeEndpoint",
+                    "sagemaker:DescribeEndpointConfig",
+                    "sagemaker:DescribeModel",
+                    "sagemaker:DescribeModelPackage",
+                    "sagemaker:UpdateEndpoint",
+                    "sagemaker:UpdateEndpointWeightsAndCapacities",
+                    "sagemaker:DeleteEndpoint",
+                    "sagemaker:DeleteEndpointConfig",
+                    "sagemaker:DeleteModel",
+                    "sagemaker:CreateInferenceRecommendationsJob",
+                    "sagemaker:DescribeInferenceRecommendationsJob",
+                    "application-autoscaling:RegisterScalableTarget",
+                    "application-autoscaling:PutScalingPolicy",
+                    "application-autoscaling:DescribeScalableTargets",
+                    "application-autoscaling:DescribeScalingPolicies",
+                    "cloudwatch:PutMetricAlarm",
+                    "cloudwatch:DescribeAlarms",
+                    "cloudwatch:DeleteAlarms",
+                    "iam:PassRole",
+                ],
+                resources=["*"],
+            )
+        )
+
+        # Add S3 permissions for model artifacts and results
+        sagemaker_pipeline_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket",
+                ],
+                resources=[
+                    f"{sagemaker_output_bucket.bucket_arn}",
+                    f"{sagemaker_output_bucket.bucket_arn}/*",
+                    f"{prod_model_artifacts_bucket.bucket_arn}",
+                    f"{prod_model_artifacts_bucket.bucket_arn}/*",
+                ],
+            )
+        )
+
+        CfnOutput(
+            self,
+            shared_variables.CDK_OUT_KEY_SAGEMAKER_PIPELINE_LAMBDA_ROLE_ARN,
+            value=sagemaker_pipeline_lambda_role.role_arn,
+            description="The Lambda execution role ARN for SageMaker pipeline functions",
+            export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_PIPELINE_LAMBDA_ROLE_ARN,
+        )
+
         ########## API GATEWAY #############
 
         apigw_construct = apigateway_construct.API(
@@ -698,17 +832,9 @@ class MyStack(Stack):
             vpc_invoke_sagemaker=stack_vpc,
             cognito_user_pool=cognito_user_pool,
             cognito_user_pool_client=cognito_user_pool_client,
-            trusted_origins=(
-                [
-                    f"https://main.{amplify_app_id}.amplifyapp.com",
-                    f"https://dev-newest.{amplify_app_id}.amplifyapp.com",
-                    f"https://test.{amplify_app_id}.amplifyapp.com",
-                    f"https://open-source.{amplify_app_id}.amplifyapp.com",
-                    "http://localhost:3000",
-                ]
-                if amplify_install
-                else CUSTOM_ALLOWED_RESOURCES
-            ),
+            trusted_origins=cors_allowed_origins,
+            custom_domain_name=custom_domain_name,
+            certificate_arn=certificate_arn,
         )
 
         ########## EVENTBRIDGE #############
@@ -739,6 +865,39 @@ class MyStack(Stack):
 
         rule.add_target(targets.LambdaFunction(function_copy_model_from_s3_to_s3))
 
+        # EventBridge rule specifically for navigation model approval events
+        navigation_deployment_rule = events.Rule(
+            self,
+            "NavigationModelDeploymentRule",
+            rule_name="trigger-navigation-deployment-pipeline",
+            description=f"Triggers the navigation deployment pipeline when navigation models are approved in the Model Registry",
+            event_pattern=events.EventPattern(
+                source=["aws.sagemaker"],
+                detail_type=["SageMaker Model Package State Change"],
+                detail={
+                    "ModelPackageGroupName": [self.sagemaker_domain_users_models_construct.navigation_model_package_group.model_package_group_name],
+                    "ModelApprovalStatus": ["Approved"],
+                },
+            ),
+        )
+
+        navigation_deployment_rule.add_target(
+            targets.AwsApi(
+                service="sagemaker",
+                action="startPipelineExecution",
+                parameters={
+                    "PipelineName": shared_variables.BOTO3_NAVIGATION_DEPLOYMENT_PIPELINE_NAME,
+                    "PipelineParameters": [
+                        {
+                            "Name": "ModelPackageArn",
+                            "Value": events.EventField.from_path("$.detail.ModelPackageArn")
+                        }
+                    ],
+                    "PipelineExecutionDisplayName": f"navigation-model-approval-{events.EventField.from_path('$.detail.ModelPackageVersion')}"
+                },
+            )
+        )
+
         ####### AMPLIFY #######
 
         if amplify_install:
@@ -750,6 +909,7 @@ class MyStack(Stack):
                 "NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID": cognito_user_pool_client.user_pool_client_id,
                 "NEXT_PUBLIC_COGNITO_USER_POOL_ID": cognito_user_pool.user_pool_id,
                 "NEXT_PUBLIC_API_GATEWAY_ENDPOINT": apigw_construct.get_url(),
+                "NEXT_PUBLIC_CHAT_ENDPOINT_NAME": shared_variables.CHAT_ENDPOINT_NAME,
                 "NEXT_PUBLIC_DEBUG_AUDIO": "true",
                 "NEXT_PUBLIC_DEBUG_DEPTH": "true",
                 "NEXT_PUBLIC_DEBUG_DETECTION": "true",

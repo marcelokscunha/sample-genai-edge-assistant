@@ -19,6 +19,8 @@ If you want to understand more in details what happens and run the commands manu
 
 **You need to deploy the backend after frontend is deployed as an Amplify application.** This is due to the fact that pushing environment variable to Amplify is automated but only available after app creation.
 
+To manually deploy, execute the commands in [amplify.yml](../amplify.yml) for the "backend" section.
+
 Install the [requirements](./requirements.txt) in a virtual environment:
 
 ```
