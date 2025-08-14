@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from huggingface_hub import login
 
 from test_utils import create_model_archive
-from code.inference import NavigationPipeline
+from src.inference import NavigationPipeline
 
 # Requirements:
 # - Make sure you've installed the dependencies in requirements.txt with 'pip install -r core/requirements.txt'

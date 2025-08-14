@@ -1,7 +1,9 @@
 import pathlib
 from pprint import pprint
+import json
+import time
 
-from code.inference import model_fn, predict_fn
+from src.inference import model_fn, predict_fn, input_fn, output_fn
 from test_utils import get_base64_from_image
 
 # Requirements:
@@ -21,8 +23,21 @@ if __name__ == "__main__":
         "image": get_base64_from_image(HERE.parent / "data" / "samples" / "sidewalk.jpg"),
         "nav_goal": "sidewalk"
     }
+    json_input = json.dumps(payload)
+    
+    print("Testing input_fn...")
+    now = time.time()
+    parsed_input = input_fn(json_input, "application/json")
+    
+    # Step 4: Test predict_fn
+    print("Testing predict_fn...")
+    prediction = predict_fn(parsed_input, pipeline)
+    
+    print("Testing output_fn...")
+    final_output = output_fn(prediction, "application/json")
+    print(f"Elapsed time {time.time() - now:.2f} seconds")
 
-    pprint(predict_fn(payload, pipeline))
+    pprint(json.loads(final_output))
     # {'response': 'The image shows a street scene with a sidewalk running along the '
     #             "right side of the frame. On the left side, there's a set of "
     #             'outdoor stairs leading up to a building with a black iron '
