@@ -66,6 +66,8 @@ export default function ChatMode() {
 
 
   const handleSendMessage = async (message) => {
+
+
     const messageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const userMessage = { ...message, id: messageId, status: 'sending' };
     addMessage(userMessage);

@@ -34,17 +34,16 @@ export class SageMakerChatService extends IChatService {
       throw new Error('SageMaker endpoint name not configured, make sure you have a working deployed model');
     }
 
-    // Use the correct payload format for Gemma3n endpoint
+    // Process multimodal content using shared utility
+    const content = await this.processContent(message.content);
+
+    if (content.length === 0) {
+      throw new Error('Message must contain either text or images');
+    }
+
     const payload = {
       task: "chat",
-      payload: {
-        content: [
-          {
-            type: "text",
-            value: message.content.text || ''
-          }
-        ]
-      }
+      payload: { content }
     };
 
     const body = JSON.stringify(payload);
@@ -58,7 +57,6 @@ export class SageMakerChatService extends IChatService {
 
   sanitizeError(error) {
     // Extract only safe error information
-    const errorCode = error.name || 'UnknownError';
     const statusCode = error.$metadata?.httpStatusCode || 500;
 
     // Log full error for debugging (only in development)
