@@ -30,7 +30,9 @@
     "next": "15.1.6",
     "react": "^18.3.1",
     "react-dom": "^18",
+    "react-markdown": "^10.1.0",
     "reactflow": "^11.11.4",
+    "remark-gfm": "^4.0.1",
     "wavefile": "^11.0.0",
     "zustand": "^5.0.1"
   },
@@ -77,7 +79,14 @@
       "!src/setupTests.js"
     ],
     "transform": {
-      "^.+\\.(js|jsx|ts|tsx)$": ["babel-jest", { "presets": ["next/babel"] }]
+      "^.+\\.(js|jsx|ts|tsx)$": [
+        "babel-jest",
+        {
+          "presets": [
+            "next/babel"
+          ]
+        }
+      ]
     }
   }
 }

@@ -16,6 +16,7 @@ import Avatar from '@cloudscape-design/chat-components/avatar';
 import ChatBubble from '@cloudscape-design/chat-components/chat-bubble';
 import LoadingBar from '@cloudscape-design/chat-components/loading-bar';
 import ChatAudioPlayer from './chatAudioPlayer';
+import TextRenderer from '../common/textRenderer';
 
 /**
  * Individual chat message component using Cloudscape Chat Components
@@ -65,9 +66,15 @@ function ChatMessage({ message, onRetry }) {
 
     return (
       <SpaceBetween direction="vertical" size="xs">
-        {/* Text content */}
+        {/* Text content with smart formatting */}
         {content.text && (
-          <div>{content.text}</div>
+          <TextRenderer
+            text={content.text}
+            style={{
+              maxWidth: '100%',
+              wordWrap: 'break-word'
+            }}
+          />
         )}
 
         {/* Image content - support multiple images */}
