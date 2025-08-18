@@ -7,7 +7,7 @@ from pathlib import Path
 
 from huggingface_hub import login
 
-from inference import NavigationPipeline
+from inference import GemmaModelManager
 
 # Configure logging for SageMaker training job
 logging.basicConfig(
@@ -74,9 +74,9 @@ if __name__ == "__main__":
         model_id = "google/gemma-3n-e2b-it"
 
         logger.info(f"Downloading and saving model {model_id} to {model_dir}...")
-        pipeline = NavigationPipeline(model_id)
-        pipeline.processor.save_pretrained(model_dir)
-        pipeline.model.save_pretrained(model_dir)
+        model_manager = GemmaModelManager(model_id)
+        model_manager.processor.save_pretrained(model_dir)
+        model_manager.model.save_pretrained(model_dir)
         
         # Copy inference code to model directory so it's included in the model package
         code_dir = model_dir / "code"

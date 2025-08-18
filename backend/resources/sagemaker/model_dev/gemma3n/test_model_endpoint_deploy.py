@@ -1,16 +1,9 @@
-
 import os
 import pathlib
-
+import sys
 import boto3
 import sagemaker
 from sagemaker.pytorch.model import PyTorchModel
-
-from test_utils import get_base64_from_image
-
-# Requirements:
-# - You have the local artifacts for the model (have ran 'python prepare_model_files.py')
-# - (Optional) Have tested locally with 'python test_model.py'
 
 def deploy_model(
     role: str,
@@ -18,45 +11,31 @@ def deploy_model(
     code_dir: str,
     entry_point="inference.py",
     endpoint_name: str = "gemma3n-test-endpoint",
-    pytorch_version: str ="2.6.0",
-    py_version: str ="py312",
-    local: bool = True
+    pytorch_version: str = "2.6.0",
+    py_version: str = "py312",
+    local: bool = False
 ):
-    """
-    Deploy a HuggingFace model locally using SageMaker local mode
+    """Deploy the Gemma3n model to SageMaker endpoint"""
     
-    Args:
-        model_data_path (str): Path to model artifacts (absolute local path or S3 URI)
-        role (str): AWS IAM role ARN
-        framework_version (str): HuggingFace Transformers version
-        pytorch_version (str): PyTorch version
-        py_version (str): Python version
-        instance_type (str): Instance type (use 'local' for local mode)
-    
-    Returns:
-        predictor: HuggingFace predictor object
-    """
     if local:
-        print("Configured local deployment...")
+        print("Deploying locally...")
         model_data = f"file://{artifacts_file}"
         instance_type = "local_gpu"
-
-        # Initialize SageMaker session
         sagemaker_session = sagemaker.LocalSession()
         sagemaker_session.config = {'local': {'local_code': True}}
-        
     else:
-        print("Configured cloud deployment...")
-
+        print("Deploying to SageMaker...")
         instance_type = "ml.g6.xlarge"
-
-        # Initialize SageMaker session
         sagemaker_session = sagemaker.Session()
         print("Uploading model artifact...")
-        model_data = sagemaker_session.upload_data(path=artifacts_file, bucket=sagemaker_session.default_bucket(), key_prefix=f"endpoints/{endpoint_name}")
-        print(f"Uploaded artifact to: {model_data}")
+        model_data = sagemaker_session.upload_data(
+            path=artifacts_file, 
+            bucket=sagemaker_session.default_bucket(), 
+            key_prefix=f"endpoints/{endpoint_name}"
+        )
+        print(f"Uploaded to: {model_data}")
 
-    print("Preparing model...")
+    print("Creating PyTorch model...")
     model = PyTorchModel(
         source_dir=code_dir,
         entry_point=entry_point,
@@ -64,45 +43,48 @@ def deploy_model(
         role=role,
         framework_version=pytorch_version,
         py_version=py_version,
+        sagemaker_session=sagemaker_session
     )
 
-    try:
-        print("Deploying...")
-        predictor = model.deploy(
-            endpoint_name=endpoint_name,
-            initial_instance_count=1,
-            instance_type=instance_type,
-            wait=True
-        )
-        print(f"Model deployed successfully in endpoint {endpoint_name}!")
+    print(f"Deploying endpoint '{endpoint_name}'...")
+    predictor = model.deploy(
+        endpoint_name=endpoint_name,
+        initial_instance_count=1,
+        instance_type=instance_type,
+        wait=True
+    )
     
-        return predictor
-    
-    except Exception as e:
-        if local:
-            print(f"Error deploying model locally (make sure Docker is enabled if in SageMaker Domain): {str(e)}")
-        raise e
-
+    print(f"✓ Endpoint '{endpoint_name}' deployed successfully!")
+    return predictor
 
 if __name__ == "__main__":
     HERE = pathlib.Path(__file__).parent
+    
+    # Use production code directory
+    PRODUCTION_CODE_DIR = HERE.parent.parent.parent / "sagemakerpipeline" / "pipelines" / "gemma3n" / "script" / "src"
+    
+    # Check if model artifacts exist
+    artifacts_file = HERE / "ARTIFACTS" / "package" / "model.tar.gz"
+    if not artifacts_file.exists():
+        print("❌ Model artifacts not found. Run 'python prepare_model_files.py' first.")
+        exit(1)
 
-    # Get IAM role - use existing SageMaker execution role
-    role = sagemaker.get_execution_role()
-    print(f"Using SageMaker execution role from environment: {role}")
-    # If you don't have enough permissions, just replace "sagemaker.get_execution_role()" with one of the existing SageMaker execution roles from your account
-
-    artifacts_file = (pathlib.Path(__file__).parent / "ARTIFACTS" / "package" / "model.tar.gz").absolute()
-    code_dir = (HERE / "src").absolute()
+    # Get IAM role
+    try:
+        role = sagemaker.get_execution_role()
+        print(f"Using SageMaker execution role: {role}")
+    except Exception:
+        print("❌ Could not get SageMaker execution role. Make sure you're running in SageMaker environment.")
+        exit(1)
 
     try:
-        # Deploy the model locally
         deploy_model(
             artifacts_file=str(artifacts_file),
-            code_dir=str(code_dir),
+            code_dir=str(PRODUCTION_CODE_DIR),
             role=role,
-            local=False
+            local=False  # Set to True for local deployment
         )
+        print("Next: Run 'python test_model_endpoint_predict.py' to test the endpoint")
         
     except Exception as e:
-        print(f"Error in deployment: {str(e)}")
+        print(f"❌ Deployment failed: {str(e)}")

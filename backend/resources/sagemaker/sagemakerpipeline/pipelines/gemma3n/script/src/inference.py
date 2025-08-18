@@ -4,10 +4,10 @@ import logging
 import os
 import pathlib
 import time
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Literal
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from transformers import AutoProcessor, Gemma3nForConditionalGeneration
 import torch
 
@@ -50,7 +50,7 @@ class PipelineStrategy(ABC):
 class NavigationStrategy(PipelineStrategy):
     """Strategy for navigation-specific prompts and predictions"""
     
-    def get_prompt(self, image: str, nav_goal: str) -> List[Dict]:
+    def get_prompt(self, image: str, goal: str) -> List[Dict]:
         return [
             {
                 "role": "system",
@@ -65,20 +65,20 @@ class NavigationStrategy(PipelineStrategy):
                     },
                     {
                         "type": "text", 
-                        "text": f"# First describe this image in detail and obstacles.\n# Finally answer the question\nTo reach the {nav_goal} what should I do: go right, left, forward?"
+                        "text": f"# First describe this image in detail and obstacles.\n# Finally answer the question\nTo reach the {goal} what should I do: go right, left, forward?"
                     }
                 ]
             }
         ]
     
-    def predict(self, model_manager: GemmaModelManager, image: str, nav_goal: str) -> str:
+    def predict(self, model_manager: GemmaModelManager, image: str, goal: str) -> str:
         """
         image: str
             Base64 image
-        nav_goal: str
-            The goal of the navigation. E.g. to reach the object "chair" we put nav_goal="chair"
+        goal: str
+            The goal of the navigation. E.g. to reach the object "chair" we put goal="chair"
         """
-        prompt = self.get_prompt(image, nav_goal)
+        prompt = self.get_prompt(image, goal)
         
         inputs = model_manager.processor.apply_chat_template(
             prompt,
@@ -98,69 +98,31 @@ class NavigationStrategy(PipelineStrategy):
 
 
 class ChatStrategy(PipelineStrategy):
-    """Strategy for chat-specific prompts and predictions with multimodal support"""
+    """Chat strategy supporting multiple content types"""
     
-    def get_prompt(self, messages: List[Dict]) -> List[Dict]:
-        """
-        messages: List of message dicts with flexible content
-        Each message can contain:
-        - role: str ("user", "assistant", "system")
-        - content: List[Dict] with flexible multimodal content
-          - {"type": "text", "text": str}
-          - {"type": "image", "image": str} (base64)
-          - {"type": "audio", "audio": str} (base64 or processed)
-        """
-        formatted_messages = []
+    def get_prompt(self, content_items: List[Dict]) -> List[Dict]:
+        """Build prompt from content items"""
+        user_content = []
         
-        # Add system message if not present
-        has_system = any(msg.get("role") == "system" for msg in messages)
-        if not has_system:
-            formatted_messages.append({
+        for item in content_items:
+            content_type = item["type"]
+            content_value = item["value"]
+            user_content.append({"type": content_type, content_type: content_value})
+        
+        return [
+            {
                 "role": "system",
-                "content": [{"type": "text", "text": "You are a helpful visual assistant for visually impaired people."}]
-            })
-        
-        for msg in messages:
-            content = []
-            
-            # Handle different content formats
-            if isinstance(msg.get("content"), str):
-                # Simple text message
-                content.append({"type": "text", "text": msg["content"]})
-            elif isinstance(msg.get("content"), list):
-                # Already formatted multimodal content
-                for item in msg["content"]:
-                    if item.get("type") == "audio":
-                        # For now, represent audio as text placeholder
-                        # TODO: Implement audio transcription if needed
-                        content.append({"type": "text", "text": "[Audio message received]"})
-                    else:
-                        content.append(item)
-            else:
-                # Handle legacy format with separate fields
-                if msg.get("text"):
-                    content.append({"type": "text", "text": msg["text"]})
-                
-                for image in msg.get("images", []):
-                    content.append({"type": "image", "image": image})
-                
-                for audio in msg.get("audio", []):
-                    # For now, represent audio as text placeholder
-                    content.append({"type": "text", "text": "[Audio message received]"})
-            
-            if content:
-                formatted_messages.append({
-                    "role": msg.get("role", "user"),
-                    "content": content
-                })
-        
-        return formatted_messages
+                "content": [{"type": "text", "text": "You are a helpful visual assistant for visually impaired people. You don't have access to any external tool, so if you are unable to help the user explain that."}]
+            },
+            {
+                "role": "user",
+                "content": user_content
+            }
+        ]
     
-    def predict(self, model_manager: GemmaModelManager, messages: List[Dict]) -> str:
-        """
-        messages: List of message dicts with flexible multimodal content
-        """
-        prompt = self.get_prompt(messages)
+    def predict(self, model_manager: GemmaModelManager, content_items: List[Dict]) -> str:
+        """Chat prediction with multiple content types"""
+        prompt = self.get_prompt(content_items)
         
         inputs = model_manager.processor.apply_chat_template(
             prompt,
@@ -211,62 +173,54 @@ def model_fn(model_dir: str):
     return UnifiedPipeline(model_dir)
 
 
-class NavigationInput(BaseModel):
-    image: str  # Base64 encoded image
-    nav_goal: str
+class MessageContent(BaseModel):
+    """Content item for chat messages"""
+    type: Literal["image", "text", "audio"]
+    value: str = Field(..., description="Content value (text string, base64 image, or base64 audio)")
 
 
-class ChatInput(BaseModel):
-    messages: List[Dict]  # List of message dicts with multimodal content
+class NavigationPayload(BaseModel):
+    """Payload for navigation task"""
+    image: str = Field(..., description="Base64 encoded image")
+    goal: str = Field(..., description="Navigation goal/target")
 
 
-class InferenceInput(BaseModel):
-    pipeline_type: str  # "navigation" or "chat"
-    # Navigation fields (optional)
-    image: Union[str, None] = None
-    nav_goal: Union[str, None] = None
-    # Chat fields (optional)
-    messages: Union[List[Dict], None] = None
+class ChatPayload(BaseModel):
+    """Payload for chat task"""
+    content: List[MessageContent] = Field(..., min_items=1, description="List of message content items")
+
+
+class TaskInput(BaseModel):
+    """Main input structure for all tasks"""
+    task: Literal["chat", "navigation"]
+    payload: NavigationPayload | ChatPayload = Field(..., description="Task-specific payload")
 
 
 def input_fn(input_data: Any, content_type: str) -> Dict:
-    """
-    Deserialize and validate input data for model inference
-    
-    Args:
-        input_data: Raw input data (byte buffer)
-        content_type: Content type of the input (must be 'application/json')
-    
-    Returns:
-        dict: Validated input data
-        
-    Raises:
-        ValueError: If content type is not 'application/json' or if data validation fails
-    """
-    if content_type == "application/json":
-        validated_input = InferenceInput.model_validate_json(input_data)
-        payload = validated_input.model_dump()
-        
-        # Validate pipeline-specific requirements
-        pipeline_type = payload["pipeline_type"]
-        
-        if pipeline_type == "navigation":
-            if not payload.get("image") or not payload.get("nav_goal"):
-                raise ValueError("Navigation pipeline requires 'image' and 'nav_goal' fields")
-        elif pipeline_type == "chat":
-            if not payload.get("messages"):
-                raise ValueError("Chat pipeline requires 'messages' field")
-        else:
-            raise ValueError(f"Unknown pipeline_type: {pipeline_type}. Must be 'navigation' or 'chat'")
-        
-        return payload
-    else:
+    """Validate input and enforce security controls."""
+    if content_type != "application/json":
         raise ValueError("Content type must be application/json")
+    
+    try:
+        data = json.loads(input_data)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON: {e}")
+    
+    # Validate the complete input structure
+    validated = TaskInput.model_validate(data)
+    
+    return validated.model_dump()
 
 
 def predict_fn(payload: Dict, pipeline: UnifiedPipeline) -> str:
-    pipeline_type = payload.pop("pipeline_type")
-    return pipeline.predict(pipeline_type, **payload)
+    """Execute prediction. All validation is already done in input_fn."""
+    task = payload["task"]
+    task_payload = payload["payload"]
+    
+    if task == "navigation":
+        return pipeline.predict("navigation", **task_payload)
+    else:  # task == "chat"
+        return pipeline.predict("chat", content_items=task_payload["content"])
 
 
 class InferenceResponse(BaseModel):

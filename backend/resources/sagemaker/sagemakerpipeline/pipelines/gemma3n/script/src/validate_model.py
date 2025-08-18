@@ -190,29 +190,32 @@ def create_sample_payload(navigation_input_data, chat_input_data):
     return str(payload_archive_path)
 
 
-# Requirements:
-# - You have the local artifacts for the model (have ran 'python prepare_model_files.py')
-# - Make sure you've installed the dependencies in requirements.txt with 'pip install -r core/requirements.txt'
-
-if __name__ == "__main__":
-    HERE = pathlib.Path(__file__).parent.absolute()
+def run_full_pipeline_test(artifacts_dir: str, create_payload: bool = True):
+    """
+    Run the full pipeline test for both navigation and chat modes.
     
-    # Always untar model artifacts first
-    ARTIFACTS_DIR = untar_model_artifacts()
+    Args:
+        artifacts_dir: Path to the model artifacts directory
+        create_payload: Whether to create sample payload (default True for SageMaker, False for local testing)
     
+    Returns:
+        tuple: (navigation_result_dict, chat_result_dict)
+    """
     print("Testing full inference pipeline...")
     
     # Step 1: Load model
     print("1. Loading model...")
-    pipeline = model_fn(str(ARTIFACTS_DIR))
+    pipeline = model_fn(artifacts_dir)
     print("✓ Model loaded successfully")
     
     # Step 2: Prepare navigation input data as JSON string (as it would come from SageMaker endpoint)
     print("2. Preparing navigation input data...")
     navigation_input_data = {
-        "pipeline_type": "navigation",
-        "image": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg"),
-        "nav_goal": "sidewalk"
+        "task": "navigation",
+        "payload": {
+            "image": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg"),
+            "goal": "sidewalk"
+        }
     }
     navigation_json_input = json.dumps(navigation_input_data)
     print("✓ Navigation input data prepared")
@@ -220,22 +223,19 @@ if __name__ == "__main__":
     # Step 2b: Prepare chat input data as JSON string
     print("2b. Preparing chat input data...")
     chat_input_data = {
-        "pipeline_type": "chat",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "image": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg")
-                    },
-                    {
-                        "type": "text",
-                        "text": "What do you see in this image? Describe it in detail."
-                    }
-                ]
-            }
-        ]
+        "task": "chat",
+        "payload": {
+            "content": [
+                {
+                    "type": "image",
+                    "value": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg")
+                },
+                {
+                    "type": "text",
+                    "value": "What do you see in this image? Describe it in detail."
+                }
+            ]
+        }
     }
     chat_json_input = json.dumps(chat_input_data)
     print("✓ Chat input data prepared")
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     print("3a. Testing input_fn for navigation...")
     parsed_navigation_input = input_fn(navigation_json_input, "application/json")
     assert isinstance(parsed_navigation_input, dict)
-    assert parsed_navigation_input["pipeline_type"] == "navigation"
+    assert parsed_navigation_input["task"] == "navigation"
     print("✓ Navigation input_fn processed successfully")
     
     print("3b. Testing predict_fn for navigation...")
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     print("4a. Testing input_fn for chat...")
     parsed_chat_input = input_fn(chat_json_input, "application/json")
     assert isinstance(parsed_chat_input, dict)
-    assert parsed_chat_input["pipeline_type"] == "chat"
+    assert parsed_chat_input["task"] == "chat"
     print("✓ Chat input_fn processed successfully")
     
     print("4b. Testing predict_fn for chat...")
@@ -332,11 +332,46 @@ if __name__ == "__main__":
     print("\nCHAT PIPELINE RESULT:")
     print("-" * 20)
     pprint(chat_result_dict)
+    # {'response': 'The image shows a street scene with a sidewalk running along the '
+    #          "right side of the frame. On the left side, there's a set of "
+    #          'outdoor stairs leading up to a building with a black iron '
+    #          'railing and a stone facade. The stairs have a decorative black '
+    #          'iron railing with geometric patterns. \n'
+    #          '\n'
+    #          'The sidewalk is made of concrete and is relatively wide. There '
+    #          'are two parked cars along the right side of the sidewalk. One is '
+    #          'a silver station wagon and the other is a gray sedan. A tree '
+    #          'with a thick trunk is growing in the middle of the sidewalk, '
+    #          "slightly to the right of the center. There's a small stone "
+    #          'pathway around the base of the tree. \n'
+    #          '\n'
+    #          'The overall scene appears to be a typical urban environment. \n'
+    #          '\n'
+    #          'To reach the sidewalk, you should go **forward**. The stairs on '
+    #          'the left lead to a higher level, so you need to proceed forward '
+    #          'to access the sidewalk.'}
 
     print("="*60)
     print("✓ All tests passed! Both navigation and chat pipelines working correctly.")
     
-    # Step 5: Create unified sample payload for inference recommendations
-    print("5. Creating unified sample payload for inference recommendations...")
-    create_sample_payload(navigation_input_data, chat_input_data)
-    print("✓ Unified sample payload created successfully")
+    # Step 5: Create unified sample payload for inference recommendations (only if requested)
+    if create_payload:
+        print("5. Creating unified sample payload for inference recommendations...")
+        create_sample_payload(navigation_input_data, chat_input_data)
+        print("✓ Unified sample payload created successfully")
+    
+    return navigation_result_dict, chat_result_dict
+
+
+# Requirements:
+# - You have the local artifacts for the model (have ran 'python prepare_model_files.py')
+# - Make sure you've installed the dependencies in requirements.txt with 'pip install -r src/requirements.txt'
+
+if __name__ == "__main__":
+    HERE = pathlib.Path(__file__).parent.absolute()
+    
+    # Always untar model artifacts first
+    ARTIFACTS_DIR = untar_model_artifacts()
+    
+    # Run the full pipeline test with payload creation
+    run_full_pipeline_test(str(ARTIFACTS_DIR), create_payload=True)
