@@ -163,7 +163,7 @@ export default function ChatInput({
         buffer: f.buffer, // ArrayBuffer for backend processing
         metadata: f.metadata,
       }));
-      
+
 
     }
 
@@ -187,8 +187,6 @@ export default function ChatInput({
       status: 'sending',
       files: processedFiles.length > 0 ? processedFiles : undefined,
     };
-
-
 
     // Send message
     if (onSendMessage) {

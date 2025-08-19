@@ -69,34 +69,41 @@ export default function ChatMode() {
 
 
     const messageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    const userMessage = { ...message, id: messageId, status: 'sending' };
+    const userMessage = { ...message, id: messageId, status: 'sent' };
     addMessage(userMessage);
+
+    // Add assistant loading message
+    const assistantLoadingId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const assistantLoadingMessage = {
+      id: assistantLoadingId,
+      type: 'assistant',
+      content: { text: '' },
+      timestamp: new Date(),
+      status: 'sending',
+    };
+    addMessage(assistantLoadingMessage);
 
     try {
       // Create service based on current model
       const service = ChatServiceFactory.createService(currentModel);
       const response = await service.sendMessage(message, useStreaming);
-      addMessage(response);
       
-      // Update user message to sent
+      // Update the loading message with the actual response
       const { updateMessage } = useChatStore.getState();
-      updateMessage(messageId, { status: 'sent' });
+      updateMessage(assistantLoadingId, {
+        content: response.content,
+        status: 'sent',
+        metadata: response.metadata,
+      });
     } catch (error) {
       console.error('Failed to send message:', error);
       
-      // Update user message to error state
+      // Update the assistant loading message to show error
       const { updateMessage } = useChatStore.getState();
-      updateMessage(messageId, { 
-        status: 'error', 
-        error: error.message 
-      });
-      
-      // Add error message
-      addMessage({
-        type: 'assistant',
+      updateMessage(assistantLoadingId, {
         content: { text: `Error: ${error.message}` },
-        timestamp: new Date(),
         status: 'error',
+        error: error.message,
       });
     }
   };

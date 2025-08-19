@@ -55,13 +55,29 @@ function ChatMessage({ message, onRetry }) {
   const renderContent = () => {
     const { content } = message;
 
-    // Show loading state for sending/retrying messages
+    // Show loading state for assistant messages that are generating
     if (isSending || isRetrying) {
-      return (
-        <Box color="text-status-inactive">
-          {isRetrying ? 'Retrying...' : 'Sending...'}
-        </Box>
-      );
+      if (!isUser) {
+        // Assistant message generating response
+        return (
+          <LiveRegion>
+            <Box
+              margin={{ bottom: "xs" }}
+              color="text-body-secondary"
+            >
+              {isRetrying ? 'Retrying...' : 'Generating response'}
+            </Box>
+            <LoadingBar variant="gen-ai" />
+          </LiveRegion>
+        );
+      } else {
+        // User message sending (should be brief)
+        return (
+          <Box color="text-status-inactive">
+            {isRetrying ? 'Retrying...' : 'Sending...'}
+          </Box>
+        );
+      }
     }
 
     return (
@@ -186,6 +202,15 @@ function ChatMessage({ message, onRetry }) {
                 warningIconAriaLabel: 'Warning',
               }}
             />
+          </Box>
+        )}
+
+        {/* Status indicator for user messages */}
+        {isUser && message.status === 'sent' && (
+          <Box display="flex" justifyContent="flex-end">
+            <Box variant="small" color="text-body-secondary">
+              Sent
+            </Box>
           </Box>
         )}
 

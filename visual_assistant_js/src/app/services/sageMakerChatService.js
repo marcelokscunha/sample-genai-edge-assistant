@@ -45,7 +45,6 @@ export class SageMakerChatService extends IChatService {
       task: "chat",
       payload: { content }
     };
-
     const body = JSON.stringify(payload);
 
     if (streaming) {
