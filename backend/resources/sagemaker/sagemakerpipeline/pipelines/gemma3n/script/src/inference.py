@@ -4,9 +4,12 @@ import logging
 import os
 import pathlib
 import time
+import io
 from typing import Any, Dict, List, Literal
 from abc import ABC, abstractmethod
 
+import librosa
+import numpy as np
 from pydantic import BaseModel, Field
 from transformers import AutoProcessor, Gemma3nForConditionalGeneration
 import torch
@@ -14,6 +17,50 @@ import torch
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+
+def preprocess_audio(base64_audio: str) -> np.ndarray:
+    """
+    Preprocess audio data for Gemma3n model according to official documentation.
+    
+    Reference: https://ai.google.dev/gemini/docs/audio
+    
+    Audio requirements for Gemma3n:
+    - Sample rate: 16kHz 
+    - Channels: Mono (single channel)
+    - Bit depth: float32 in range [-1, 1]
+    - Frame size: 32 millisecond frames
+    
+    Args:
+        base64_audio: Base64 encoded audio data (MP3, WAV, etc.)
+        
+    Returns:
+        np.ndarray: numpy array with audio data
+    """
+    # Decode base64 audio data
+    audio_data = base64.b64decode(base64_audio.split(',')[-1])  # Remove data URI prefix if present
+    
+    # Load audio using librosa (handles various formats like MP3, WAV)
+    # librosa automatically converts to float32 and normalizes to [-1, 1]
+    audio, original_sr = librosa.load(io.BytesIO(audio_data), sr=None, mono=False)
+    
+    # Convert to mono if stereo (average channels as per Gemma3n docs)
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=0)
+    
+    # Resample to 16kHz using scipy method for best results (as recommended in docs)
+    if original_sr != 16000:
+        audio = librosa.resample(audio, orig_sr=original_sr, target_sr=16000, res_type='scipy')
+    
+    # Ensure float32 and proper range [-1, 1] (librosa already handles this)
+    audio = audio.astype(np.float32)
+    
+    # Clip to ensure values are in [-1, 1] range
+    audio = np.clip(audio, -1.0, 1.0)
+    
+    logger.debug(f"Preprocessed audio: shape={audio.shape}, dtype={audio.dtype}, min={audio.min():.3f}, max={audio.max():.3f}")
+    
+    return audio
 
 
 class GemmaModelManager:
@@ -107,7 +154,13 @@ class ChatStrategy(PipelineStrategy):
         for item in content_items:
             content_type = item["type"]
             content_value = item["value"]
-            user_content.append({"type": content_type, content_type: content_value})
+            
+            if content_type == "audio":
+                # Preprocess audio according to Gemma3n requirements
+                processed_audio = preprocess_audio(content_value)
+                user_content.append({"type": "audio", "audio": processed_audio})
+            else:
+                user_content.append({"type": content_type, content_type: content_value})
         
         return [
             {

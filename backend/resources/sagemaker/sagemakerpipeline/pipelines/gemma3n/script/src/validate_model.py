@@ -1,4 +1,5 @@
 import base64
+from functools import partial
 import json
 import os
 import pathlib
@@ -17,6 +18,14 @@ def get_base64_from_image(image_path: str) -> str:
         b64_bytes = base64.b64encode(img_file.read())
         b64_str = b64_bytes.decode('utf-8')
         data_uri = f"data:image/jpeg;base64,{b64_str}"
+    return data_uri
+
+def get_base64_from_audio(audio_path: str) -> str:
+    """Convert audio file to base64 data URI format."""
+    with open(audio_path, 'rb') as audio_file:
+        b64_bytes = base64.b64encode(audio_file.read())
+        b64_str = b64_bytes.decode('utf-8')
+        data_uri = f"data:audio/mp3;base64,{b64_str}"
     return data_uri
 
 def untar_model_artifacts():
@@ -58,7 +67,7 @@ def untar_model_artifacts():
             raise RuntimeError("ARTIFACTS directory does not exist. Please run the prepare_model_files.py script first.")
         return artifacts_dir
 
-def validate_output_format(result):
+def validate_navigation_output_format(result):
     """Validate that the output matches the expected format for navigation."""
     # Expected format: {'response': 'string with navigation guidance'}
     if not isinstance(result, dict):
@@ -88,7 +97,7 @@ def validate_output_format(result):
     return True
 
 
-def validate_chat_output_format(result):
+def validate_chat_output_format(result, descriptive_keywords):
     """Validate that the output matches the expected format for chat."""
     # Expected format: {'response': 'string with chat response'}
     if not isinstance(result, dict):
@@ -106,7 +115,6 @@ def validate_chat_output_format(result):
     
     # Check for descriptive content (chat responses should be descriptive)
     response_lower = response.lower()
-    descriptive_keywords = ['see', 'image', 'shows', 'appears', 'visible', 'contains', 'depicts']
     found_keywords = [kw for kw in descriptive_keywords if kw in response_lower]
     
     if not found_keywords:
@@ -116,6 +124,254 @@ def validate_chat_output_format(result):
     
     print("✓ Chat output format validation passed")
     return True
+
+def run_test(pipeline, input_data, validator_fn):
+    """Run a single test through the full pipeline."""
+    json_input = json.dumps(input_data)
+    parsed_input = input_fn(json_input, "application/json")
+    prediction = predict_fn(parsed_input, pipeline)
+    final_output = output_fn(prediction, "application/json")
+    result = json.loads(final_output)
+    validator_fn(result)
+    return result
+
+def test_navigation_use_case(pipeline):
+    """Test navigation use case with different scenarios."""
+    print("\n" + "="*60)
+    print("TESTING NAVIGATION USE CASE")
+    print("="*60)
+    
+    # Test 1: Basic navigation
+    print("1. Testing basic navigation...")
+    input_data = {
+        "task": "navigation",
+        "payload": {
+            "image": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg"),
+            "goal": "sidewalk"
+        }
+    }
+    
+    result = run_test(pipeline, input_data, validate_navigation_output_format)
+    print("✓ Navigation test passed")
+    
+    print("\nNAVIGATION RESULT:")
+    pprint(result)
+    # {'response': 'The image shows a street scene with a sidewalk running along the '
+    #          "right side of the frame. On the left side, there's a set of "
+    #          'outdoor stairs leading up to a building with a black iron '
+    #          'railing and a stone facade. The stairs have a decorative black '
+    #          'iron railing with geometric patterns. \n'
+    #          '\n'
+    #          'The sidewalk is made of concrete and is relatively wide. There '
+    #          'are two parked cars along the right side of the sidewalk. One is '
+    #          'a silver station wagon and the other is a gray sedan. A tree '
+    #          'with a thick trunk is growing in the middle of the sidewalk, '
+    #          "slightly to the right of the center. There's a small stone "
+    #          'pathway around the base of the tree. \n'
+    #          '\n'
+    #          'The overall scene appears to be a typical urban environment. \n'
+    #          '\n'
+    #          'To reach the sidewalk, you should go **forward**. The stairs on '
+    #          'the left lead to a higher level, so you need to proceed forward '
+    #          'to access the sidewalk.'}
+    
+
+def test_chat_use_case(pipeline):
+    """Test chat use case with different scenarios."""
+    print("\n" + "="*60)
+    print("TESTING CHAT USE CASE")
+    print("="*60)
+    
+    results = []
+    
+    # Test 1: Text and image
+    print("1. Testing chat with text and image...")
+    input_data = {
+        "task": "chat",
+        "payload": {
+            "content": [
+                {
+                    "type": "image",
+                    "value": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg")
+                },
+                {
+                    "type": "text",
+                    "value": "What do you see in this image? Describe it in detail."
+                }
+            ]
+        }
+    }
+    
+    result = run_test(pipeline, input_data, partial(validate_chat_output_format, descriptive_keywords=['see', 'image', 'shows', 'appears', 'visible', 'contains', 'depicts']))
+    print("✓ Chat text+image test passed")
+    print("RESULT:")
+    pprint(result)
+    # {'response': 'The image shows a street scene on a sunny day. The main focus is '
+    #          'on a sidewalk next to a building with a staircase leading up to '
+    #          'it. \n'
+    #          '\n'
+    #          "On the left side of the image, there's a light-colored building "
+    #          'with a dark metal railing and a black metal staircase with '
+    #          'decorative geometric patterns on the railings. The staircase has '
+    #          'a few steps visible, and the railing is attached to the side of '
+    #          'the building. \n'
+    #          '\n'
+    #          "To the right of the staircase, there's a narrow sidewalk made of "
+    #          'concrete. A large tree trunk is growing in the middle of the '
+    #          'sidewalk, with its roots visible near the base. \n'
+    #          '\n'
+    #          'Parked along the right side of the sidewalk are two silver cars. '
+    #          'The car closer to the viewer is a station wagon, and the one '
+    #          'behind it is also a station wagon. \n'
+    #          '\n'
+    #          'In the background, there are more trees and some people walking '
+    #          'on the sidewalk. The overall scene is typical of a residential '
+    #          'street in an urban area.'}
+    
+    # Test 2: Audio only
+    print("\n2. Testing chat with audio only...")
+    input_data = {
+        "task": "chat",
+        "payload": {
+            "content": [
+                {
+                    "type": "audio",
+                    "value": get_base64_from_audio(HERE / "data" / "samples" / "project_description.mp3")
+                }
+            ]
+        }
+    }
+    
+    result = run_test(pipeline, input_data, partial(validate_chat_output_format, descriptive_keywords=['prototype', 'showcases', 'foundation', 'models', 'revolutionize', 'care', 'assist', 'visually', 'impaired']))
+    print("✓ Chat audio-only test passed")
+    print("RESULT:")
+    pprint(result)
+    # {'response': 'This is a fascinating concept! It sounds like a really '
+    #          'innovative approach to helping visually impaired people. \n'
+    #          '\n'
+    #          "Here's what I gather from the description:\n"
+    #          '\n'
+    #          '* **Foundation Models for Revolutionizing Care:** The core idea '
+    #          'is to use powerful AI models (foundation models) to improve care '
+    #          'for visually impaired individuals.\n'
+    #          '* **Alerting to Dangerous Situations:** The system specifically '
+    #          'focuses on detecting and alerting users to potentially hazardous '
+    #          'situations. This is incredibly valuable for safety and '
+    #          'independence.\n'
+    #          '* **Edge and Cloud Computing:**  The system utilizes both '
+    #          'on-device processing (at the "edge") and cloud-based processing '
+    #          '(on Amazon SageMaker). This offers flexibility and potentially '
+    #          'faster response times for critical alerts while also allowing '
+    #          'for more complex analysis and data storage.\n'
+    #          '\n'
+    #          '**Overall, it sounds like a very promising application of AI!**  '
+    #          'The ability to proactively identify dangers and provide timely '
+    #          'alerts could significantly enhance the quality of life for '
+    #          'visually impaired individuals. \n'
+    #          '\n'
+    #          "It's great to see technology being used in such a meaningful way "
+    #          'to support accessibility and safety.\n'
+    #          '\n'
+    #          '\n'
+    #          '\n'
+    #          'Do you have any specific questions about this prototype that I '
+    #          "can try to help you with? Perhaps you'd like me to elaborate on "
+    #          "any of the points, or you have a particular aspect you'd like to "
+    #          'discuss?\n'
+    #          '\n'
+    #          '\n'
+    #          '\n'}
+    
+    # Test 3: Audio and image
+    print("\n3. Testing chat with audio and image...")
+    input_data = {
+        "task": "chat",
+        "payload": {
+            "content": [
+                {
+                    "type": "audio",
+                    "value": get_base64_from_audio(HERE / "data" / "samples" / "goal_house.mp3")
+                },
+                {
+                    "type": "image",
+                    "value": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg")
+                }
+            ]
+        }
+    }
+    
+    result = run_test(pipeline, input_data, partial(validate_chat_output_format, descriptive_keywords=['house', 'left', 'tree', 'stairs']))
+    print("✓ Chat audio+image test passed")
+    print("RESULT:")
+    pprint(result)
+    # {'response': 'The house is on the left. There are stairs leading up to the '
+    #          'entrance. There is a tree growing next to the stairs on the '
+    #          'right side. There is a black railing along the side of the '
+    #          'stairs. There are parked cars on the street.'}
+    
+    # Test 4: Text, audio and image
+    print("\n4. Testing chat with text, audio and image...")
+    input_data = {
+        "task": "chat",
+        "payload": {
+            "content": [
+                {
+                    "type": "text",
+                    "value": "First transcribe the audio within <transcript> tags. Then do what the audio is telling you."
+                },
+                {
+                    "type": "audio",
+                    "value": get_base64_from_audio(HERE / "data" / "samples" / "goal_house.mp3")
+                },
+                {
+                    "type": "image",
+                    "value": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg")
+                }
+            ]
+        }
+    }
+    
+    result = run_test(pipeline, input_data, partial(validate_chat_output_format, descriptive_keywords=['house', 'left', 'tree', 'stairs']))
+    print("✓ Chat multimodal test passed")
+    print("RESULT:")
+    pprint(result)
+    # {'response': '<transcript>I think my house is on the left. How can I enter it? '
+    #          'Are there any obstacles?</transcript>\n'
+    #          'The image shows a street scene with a house on the left. The '
+    #          'house has a set of stairs leading up to the entrance. There is a '
+    #          'tree growing next to the sidewalk, and a parked car is on the '
+    #          'street. There are some metal railings along the side of the '
+    #          'stairs. The sidewalk is made of concrete and there are some '
+    #          'cobblestones near the base of the tree.'}
+    
+    # Test 5: Audio transcription with explicit text prompt
+    print("\n5. Testing audio transcription...")
+    input_data = {
+        "task": "chat",
+        "payload": {
+            "content": [
+                {
+                    "type": "audio",
+                    "value": get_base64_from_audio(HERE / "data" / "samples" / "project_description.mp3")
+                },
+                {
+                    "type": "text",
+                    "value": "Transcribe this audio"
+                }
+            ]
+        }
+    }
+    
+    result = run_test(pipeline, input_data, partial(validate_chat_output_format, descriptive_keywords=['prototype', 'showcases', 'foundation', 'models', 'revolutionize', 'care', 'assist', 'visually', 'impaired']))
+    print("✓ Audio transcription test passed")
+    print("\nTRANSCRIPTION RESULT:")
+    pprint(result)
+    # {'response': 'This prototype showcases how foundation models can revolutionize '
+    #          'care and assist the visually impaired by alerting dangerous '
+    #          'situations. It runs machine learning models both at the edge and '
+    #          'in Amazon SageMaker, giving both options. What do you think '
+    #          'about it?'}
+    
 
 def create_sample_payload(navigation_input_data, chat_input_data):
     """
@@ -192,175 +448,59 @@ def create_sample_payload(navigation_input_data, chat_input_data):
 
 def run_full_pipeline_test(artifacts_dir: str, create_payload: bool = True):
     """
-    Run the full pipeline test for both navigation and chat modes.
+    Run the full pipeline test for navigation and chat use cases.
     
     Args:
         artifacts_dir: Path to the model artifacts directory
         create_payload: Whether to create sample payload (default True for SageMaker, False for local testing)
     
     Returns:
-        tuple: (navigation_result_dict, chat_result_dict)
+        tuple: (navigation_results, chat_results)
     """
     print("Testing full inference pipeline...")
     
-    # Step 1: Load model
-    print("1. Loading model...")
+    # Load model
+    print("Loading model...")
     pipeline = model_fn(artifacts_dir)
     print("✓ Model loaded successfully")
     
-    # Step 2: Prepare navigation input data as JSON string (as it would come from SageMaker endpoint)
-    print("2. Preparing navigation input data...")
-    navigation_input_data = {
-        "task": "navigation",
-        "payload": {
-            "image": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg"),
-            "goal": "sidewalk"
-        }
-    }
-    navigation_json_input = json.dumps(navigation_input_data)
-    print("✓ Navigation input data prepared")
+    # Test navigation use case
+    navigation_results = test_navigation_use_case(pipeline)
     
-    # Step 2b: Prepare chat input data as JSON string
-    print("2b. Preparing chat input data...")
-    chat_input_data = {
-        "task": "chat",
-        "payload": {
-            "content": [
-                {
-                    "type": "image",
-                    "value": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg")
-                },
-                {
-                    "type": "text",
-                    "value": "What do you see in this image? Describe it in detail."
-                }
-            ]
-        }
-    }
-    chat_json_input = json.dumps(chat_input_data)
-    print("✓ Chat input data prepared")
-    
-    # Step 3: Test navigation pipeline
-    print("3. Testing navigation pipeline...")
-    print("3a. Testing input_fn for navigation...")
-    parsed_navigation_input = input_fn(navigation_json_input, "application/json")
-    assert isinstance(parsed_navigation_input, dict)
-    assert parsed_navigation_input["task"] == "navigation"
-    print("✓ Navigation input_fn processed successfully")
-    
-    print("3b. Testing predict_fn for navigation...")
-    navigation_prediction = predict_fn(parsed_navigation_input, pipeline)
-    assert isinstance(navigation_prediction, str)
-    print("✓ Navigation predict_fn completed successfully")
-    
-    print("3c. Testing output_fn for navigation...")
-    navigation_final_output = output_fn(navigation_prediction, "application/json")
-    assert isinstance(navigation_final_output, str)
-    print("✓ Navigation output_fn completed successfully")
-    
-    print("3d. Validating navigation output format...")
-    navigation_result_dict = json.loads(navigation_final_output)
-    validate_output_format(navigation_result_dict)
-    
-    # Step 4: Test chat pipeline
-    print("4. Testing chat pipeline...")
-    print("4a. Testing input_fn for chat...")
-    parsed_chat_input = input_fn(chat_json_input, "application/json")
-    assert isinstance(parsed_chat_input, dict)
-    assert parsed_chat_input["task"] == "chat"
-    print("✓ Chat input_fn processed successfully")
-    
-    print("4b. Testing predict_fn for chat...")
-    chat_prediction = predict_fn(parsed_chat_input, pipeline)
-    assert isinstance(chat_prediction, str)
-    print("✓ Chat predict_fn completed successfully")
-    
-    print("4c. Testing output_fn for chat...")
-    chat_final_output = output_fn(chat_prediction, "application/json")
-    assert isinstance(chat_final_output, str)
-    print("✓ Chat output_fn completed successfully")
-    
-    print("4d. Validating chat output format...")
-    chat_result_dict = json.loads(chat_final_output)
-    validate_chat_output_format(chat_result_dict)
+    # Test chat use case  
+    chat_results = test_chat_use_case(pipeline)
     
     print("\n" + "="*60)
-    print("FULL PIPELINE TEST RESULTS:")
+    print("✓ All tests passed! Navigation and chat use cases working correctly.")
     print("="*60)
-    print("\nNAVIGATION PIPELINE RESULT:")
-    print("-" * 30)
-    pprint(navigation_result_dict)
-    # {'response': 'The image shows a street scene with a sidewalk running along the '
-    #             "right side of the frame. On the left side, there's a set of "
-    #             'outdoor stairs leading up to a building with a black iron '
-    #             'railing and a stone facade. The stairs have a decorative black '
-    #             'iron design on the risers. \n'
-    #             '\n'
-    #             'The sidewalk is made of concrete and is relatively wide. There '
-    #             'are two parked cars along the right side of the sidewalk. One is '
-    #             'a silver station wagon and the other is a darker silver sedan. A '
-    #             'tree with a thick trunk is growing in the middle of the '
-    #             "sidewalk, slightly to the right of the center. There's a small "
-    #             'stone or brick area around the base of the tree. \n'
-    #             '\n'
-    #             'The railing on the left side of the stairs is made of black iron '
-    #             'bars and has a decorative pattern. There are also black iron '
-    #             'posts supporting the railing. \n'
-    #             '\n'
-    #             '**Obstacles:**\n'
-    #             '\n'
-    #             '* **Stairs:** There are outdoor stairs on the left side of the '
-    #             'frame.\n'
-    #             '* **Tree:** A tree is growing in the middle of the sidewalk.\n'
-    #             '* **Parked Cars:** There are parked cars on the right side of '
-    #             'the sidewalk.\n'
-    #             '* **Railing:** The black iron railing on the left side of the '
-    #             'stairs.\n'
-    #             '\n'
-    #             '\n'
-    #             '\n'
-    #             '**To reach the sidewalk:**\n'
-    #             '\n'
-    #             'Based on the image, to reach the sidewalk, you should **go '
-    #             'right**. The sidewalk is on the right side of the frame, and the '
-    #             'stairs are on the left. You would need to navigate around the '
-    #             'tree and the parked cars to get to the sidewalk.\n'
-    #             '\n'
-    #             '\n'
-    #             '\n'}
     
-    print("\nCHAT PIPELINE RESULT:")
-    print("-" * 20)
-    pprint(chat_result_dict)
-    # {'response': 'The image shows a street scene with a sidewalk running along the '
-    #          "right side of the frame. On the left side, there's a set of "
-    #          'outdoor stairs leading up to a building with a black iron '
-    #          'railing and a stone facade. The stairs have a decorative black '
-    #          'iron railing with geometric patterns. \n'
-    #          '\n'
-    #          'The sidewalk is made of concrete and is relatively wide. There '
-    #          'are two parked cars along the right side of the sidewalk. One is '
-    #          'a silver station wagon and the other is a gray sedan. A tree '
-    #          'with a thick trunk is growing in the middle of the sidewalk, '
-    #          "slightly to the right of the center. There's a small stone "
-    #          'pathway around the base of the tree. \n'
-    #          '\n'
-    #          'The overall scene appears to be a typical urban environment. \n'
-    #          '\n'
-    #          'To reach the sidewalk, you should go **forward**. The stairs on '
-    #          'the left lead to a higher level, so you need to proceed forward '
-    #          'to access the sidewalk.'}
-
-    print("="*60)
-    print("✓ All tests passed! Both navigation and chat pipelines working correctly.")
-    
-    # Step 5: Create unified sample payload for inference recommendations (only if requested)
+    # Create sample payload if requested
     if create_payload:
-        print("5. Creating unified sample payload for inference recommendations...")
-        create_sample_payload(navigation_input_data, chat_input_data)
-        print("✓ Unified sample payload created successfully")
-    
-    return navigation_result_dict, chat_result_dict
+        print("\nCreating sample payload for inference recommendations...")
+        navigation_sample = {
+            "task": "navigation",
+            "payload": {
+                "image": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg"),
+                "goal": "sidewalk"
+            }
+        }
+        chat_sample = {
+            "task": "chat",
+            "payload": {
+                "content": [
+                    {
+                        "type": "image",
+                        "value": get_base64_from_image(HERE / "data" / "samples" / "sidewalk.jpg")
+                    },
+                    {
+                        "type": "text",
+                        "value": "What do you see in this image? Describe it in detail."
+                    }
+                ]
+            }
+        }
+        create_sample_payload(navigation_sample, chat_sample)
+        print("✓ Sample payload created successfully")
 
 
 # Requirements:
@@ -373,5 +513,5 @@ if __name__ == "__main__":
     # Always untar model artifacts first
     ARTIFACTS_DIR = untar_model_artifacts()
     
-    # Run the full pipeline test with payload creation
+    # Run the full pipeline test with payload creation (includes all audio tests)
     run_full_pipeline_test(str(ARTIFACTS_DIR), create_payload=True)
