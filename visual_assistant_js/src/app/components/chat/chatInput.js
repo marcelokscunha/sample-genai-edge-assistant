@@ -121,9 +121,11 @@ export default function ChatInput({
           const backendData = await processImageForBackend(file);
           processedFile.buffer = backendData.buffer;
           processedFile.metadata = backendData.metadata;
+
         } catch (error) {
-          console.error('Failed to process image:', error);
-          // Continue without backend data for now
+          console.error('Failed to process image for backend:', error);
+          // Continue without backend data - file will still be shown in UI
+          processedFile.processingError = error.message;
         }
       }
 
@@ -135,6 +137,8 @@ export default function ChatInput({
           processedFile.metadata = backendData.metadata;
         } catch (error) {
           console.error('Failed to process audio:', error);
+          // Continue without backend data - file will still be shown in UI
+          processedFile.processingError = error.message;
         }
       }
 
@@ -159,6 +163,8 @@ export default function ChatInput({
         buffer: f.buffer, // ArrayBuffer for backend processing
         metadata: f.metadata,
       }));
+      
+
     }
 
     // Add audio content if there are audio files
@@ -181,6 +187,8 @@ export default function ChatInput({
       status: 'sending',
       files: processedFiles.length > 0 ? processedFiles : undefined,
     };
+
+
 
     // Send message
     if (onSendMessage) {
