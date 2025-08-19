@@ -11,9 +11,9 @@ const defaultModels = [
   },
   {
     id: 'local-llm',
-    name: 'Local LLM',
+    name: 'Local LLM (Janus Pro 1B)',
     type: 'local',
-    status: 'unavailable',
+    status: 'ready',
   },
 ];
 

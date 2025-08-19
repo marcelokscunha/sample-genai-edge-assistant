@@ -130,7 +130,7 @@ async function downloadAndCacheModel(modelKey, url, serverETag) {
     console.log('Fetching model:', modelKey, response.status);
     await cacheModel(modelKey, response.data, serverETag);
   } catch (error) {
-    console.error('Error processing model:', modelKey, error);    throw error;
+    console.error('Error processing model:', modelKey, error); throw error;
   }
 }
 

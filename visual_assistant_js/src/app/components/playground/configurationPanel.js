@@ -15,7 +15,7 @@ import {
 import { useDepthStore } from 'src/app/stores/depthStore';
 import { useDetectionStore } from 'src/app/stores/detectionStore';
 import { useMetaStore } from 'src/app/stores/metaStore';
-import { WORKER_TO_MODEL_MAP } from 'src/app/globals';
+import { WORKER_TO_MODEL_MAP, CHAT_MODEL_MAP } from 'src/app/globals';
 import { deleteAllCache, deleteModelsCache } from 'src/app/utils/modelFetching';
 
 const ConfigurationPanel = () => {
@@ -74,6 +74,14 @@ const ConfigurationPanel = () => {
                     Delete {key} cache
                   </Button>
                 ))}
+                {/* Add chat model cache deletion */}
+                <Button
+                  onClick={() => deleteModelsCache(['chat'])}
+                  variant="primary"
+                  iconName="remove"
+                >
+                  Delete chat cache
+                </Button>
               </SpaceBetween>
               <Button
                 onClick={deleteAllCache}
