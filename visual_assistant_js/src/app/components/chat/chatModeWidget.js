@@ -21,10 +21,13 @@ import CustomHelpPanel from '../playground/helpPanel';
 import { useMetaStore } from '../../stores/metaStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useModelSelectionStore } from '../../stores/modelSelectionStore';
+import { useServiceSelectionStore } from '../../stores/serviceSelectionStore';
 import { ChatServiceFactory } from '../../services/chatServiceFactory';
 import TopBar from '../topBar';
 import ChatMessageList from './chatMessageList';
 import ChatInput from './chatInput';
+import ChatModelModal from './chatModelModal';
+import { getCachedManifest, validateCachedFiles } from '../../utils/modelFetching';
 
 /**
  * ChatMode component - Main container for the chat interface
@@ -39,6 +42,10 @@ export default function ChatMode() {
   const [authError, setAuthError] = useState(null);
 
   const [useStreaming, setUseStreaming] = useState(false);
+  const [showModelModal, setShowModelModal] = useState(false);
+  const [localModelReady, setLocalModelReady] = useState(false);
+  const [modelLoadingStatus, setModelLoadingStatus] = useState('idle'); // idle, loading, ready, error
+  const [chatService, setChatService] = useState(null); // Persistent chat service
 
   const { messages, error: chatError, isLoading: chatLoading, clearChat, addMessage, hasMessages } = useChatStore();
   const { currentModel, availableModels, setCurrentModel } = useModelSelectionStore();
@@ -63,10 +70,141 @@ export default function ChatMode() {
     checkAuthentication();
   }, []);
 
+  // Check local model availability and updates
+  useEffect(() => {
+    const checkLocalModel = async () => {
+      try {
+        // First fetch remote model info to compare ETags
+        const { fetchModelUrl } = await import('../../utils/modelFetching.js');
+        const { updateRemoteModelInfo, validateAndUpdateModelStatus } = useServiceSelectionStore.getState();
+        
+        try {
+          const modelUrlData = await fetchModelUrl();
+          updateRemoteModelInfo(modelUrlData);
+        } catch (error) {
+          console.log('Could not fetch remote model info:', error);
+        }
+        
+        // Then validate local model status
+        await validateAndUpdateModelStatus();
+        
+        const manifest = await getCachedManifest('chat');
+        if (manifest) {
+          const isValid = await validateCachedFiles('chat', manifest);
+          setLocalModelReady(isValid);
+        } else {
+          setLocalModelReady(false);
+        }
+      } catch (error) {
+        console.error('Error checking local model:', error);
+        setLocalModelReady(false);
+      }
+    };
+    checkLocalModel();
+  }, []);
+
+  // Handle model selection - show modal if Local LLM needs download/update
+  const handleModelSelection = async (model) => {
+    if (model.type === 'local') {
+      // Check if model needs download or update
+      const { getModelDownloadStatus } = useServiceSelectionStore.getState();
+      const status = getModelDownloadStatus('chat');
+      
+      if (['needsDownload', 'outdated', 'unavailable'].includes(status)) {
+        // Show modal to download/update model
+        setShowModelModal(true);
+      } else if (status === 'upToDate') {
+        // Model is up to date, set as current and start loading
+        setCurrentModel(model);
+        await initializeLocalModel();
+      } else {
+        // Model status unclear, show modal to be safe
+        setShowModelModal(true);
+      }
+    } else {
+      setCurrentModel(model);
+    }
+  };
+
+  // Initialize the local model worker
+  const initializeLocalModel = async () => {
+    if (modelLoadingStatus === 'loading' || modelLoadingStatus === 'ready') {
+      console.log('Model already loading or ready, skipping initialization');
+      return;
+    }
+    
+    setModelLoadingStatus('loading');
+    try {
+      // Create a persistent chat service
+      const { LocalChatService } = await import('../../services/localChatService.js');
+      const service = new LocalChatService();
+      await service.initializeWorker();
+      setChatService(service);
+      setModelLoadingStatus('ready');
+    } catch (error) {
+      console.error('Failed to initialize local model:', error);
+      setModelLoadingStatus('error');
+    }
+  };
+
+  const handleModelReady = async () => {
+    setLocalModelReady(true);
+    setShowModelModal(false);
+    // Set the local model as current and initialize it
+    const localModel = availableModels.find(m => m.type === 'local');
+    if (localModel) {
+      setCurrentModel(localModel);
+      await initializeLocalModel();
+    }
+  };
+
+  // Cleanup chat service when component unmounts or model changes
+  useEffect(() => {
+    return () => {
+      if (chatService) {
+        chatService.dispose();
+      }
+    };
+  }, [chatService]);
+
+  // Cleanup when switching away from local model
+  useEffect(() => {
+    if (currentModel?.type !== 'local' && chatService) {
+      chatService.dispose();
+      setChatService(null);
+      setModelLoadingStatus('idle');
+    }
+  }, [currentModel, chatService]);
+
 
 
   const handleSendMessage = async (message) => {
-
+    // Check if local model is selected but not ready
+    if (currentModel?.type === 'local' && modelLoadingStatus !== 'ready') {
+      if (modelLoadingStatus === 'loading') {
+        // Show a temporary message that model is loading
+        const tempMessage = {
+          id: `temp_${Date.now()}`,
+          type: 'assistant',
+          content: { text: 'Please wait, the local model is still loading...' },
+          timestamp: new Date(),
+          status: 'sent',
+        };
+        addMessage(tempMessage);
+        return;
+      } else {
+        // Model failed to load or not initialized
+        const errorMessage = {
+          id: `error_${Date.now()}`,
+          type: 'assistant',
+          content: { text: 'Local model is not ready. Please select the model again or try a different model.' },
+          timestamp: new Date(),
+          status: 'sent',
+        };
+        addMessage(errorMessage);
+        return;
+      }
+    }
 
     const messageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const userMessage = { ...message, id: messageId, status: 'sent' };
@@ -84,8 +222,14 @@ export default function ChatMode() {
     addMessage(assistantLoadingMessage);
 
     try {
-      // Create service based on current model
-      const service = ChatServiceFactory.createService(currentModel);
+      // Use persistent chat service for local models, or create new service for others
+      let service;
+      if (currentModel?.type === 'local' && chatService) {
+        service = chatService; // Reuse the persistent service
+      } else {
+        service = ChatServiceFactory.createService(currentModel);
+      }
+      
       const response = await service.sendMessage(message, useStreaming);
       
       // Update the loading message with the actual response
@@ -219,13 +363,21 @@ export default function ChatMode() {
             actions={
               <SpaceBetween direction="horizontal" size="xs">
                 <ButtonDropdown
-                  items={availableModels.map(m => ({ id: m.id, text: m.name }))}
+                  items={availableModels.map(m => ({ 
+                    id: m.id, 
+                    text: m.name,
+                    iconName: m.type === 'local' && localModelReady && modelLoadingStatus === 'ready' ? 'status-positive' : 
+                             m.type === 'local' && modelLoadingStatus === 'loading' ? 'status-pending' :
+                             m.type === 'local' && modelLoadingStatus === 'error' ? 'status-negative' : undefined
+                  }))}
                   onItemClick={({ detail }) => {
                     const model = availableModels.find(m => m.id === detail.id);
-                    setCurrentModel(model);
+                    handleModelSelection(model);
                   }}
+                  loading={modelLoadingStatus === 'loading'}
                 >
                   {currentModel?.name || 'Select Model'}
+                  {currentModel?.type === 'local' && modelLoadingStatus === 'loading' && ' (Loading...)'}
                 </ButtonDropdown>
 
                 <Button 
@@ -249,6 +401,22 @@ export default function ChatMode() {
         }
       >
         <SpaceBetween direction="vertical" size="m">
+          {/* Model loading status */}
+          {currentModel?.type === 'local' && modelLoadingStatus === 'loading' && (
+            <Alert type="info" header="Loading Local Model">
+              <SpaceBetween direction="vertical" size="xs">
+                <Box>Initializing Janus Pro 1B model for local chat...</Box>
+                <Spinner />
+              </SpaceBetween>
+            </Alert>
+          )}
+          
+          {currentModel?.type === 'local' && modelLoadingStatus === 'error' && (
+            <Alert type="error" header="Model Loading Failed">
+              Failed to initialize the local chat model. Please try selecting the model again.
+            </Alert>
+          )}
+
           {/* Chat messages area with fixed height */}
           <div
             ref={messagesContainerRef}
@@ -307,6 +475,13 @@ export default function ChatMode() {
         onToolsChange={({ detail }) => setToolsOpen(detail.open)}
         contentType="default"
         toolsWidth={300}
+      />
+      
+      {/* Chat Model Download Modal */}
+      <ChatModelModal
+        visible={showModelModal}
+        onDismiss={() => setShowModelModal(false)}
+        onModelReady={handleModelReady}
       />
     </>
   );

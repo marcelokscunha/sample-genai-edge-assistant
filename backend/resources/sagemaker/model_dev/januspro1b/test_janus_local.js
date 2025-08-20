@@ -5,12 +5,15 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// First download artifacts to ARTIFACTS dir in janus-pro-1b dir: hf download onnx-community/Janus-Pro-1B-ONNX --local-dir ARTIFACTS
+// Then move the necessary files for the desired quantization: e.g. cp ARTIFACTS/onnx/*uint8.onnx ARTIFACTS_UINT8/onnx/
+
 async function testJanusLocal() {
     try {
-        console.log("Loading Janus-Pro-1B model from local files...");
+        console.log("Loading Janus-Pro-1B model with WebGPU configuration...");
 
-        // Path to the ARTIFACTS_MINIMAL directory (relative to this script)
-        const modelPath = join(__dirname, "ARTIFACTS_MINIMAL");
+        // Path to the WebGPU-optimized model directory
+        const modelPath = join(__dirname, "ARTIFACTS_WEBGPU");
 
         console.log("Model path:", modelPath);
 
@@ -19,19 +22,35 @@ async function testJanusLocal() {
             local_files_only: true
         });
 
+        // Test WebGPU configuration
+        const fp16_supported = true; // Feature check for fp16 support
+
         const model = await MultiModalityCausalLM.from_pretrained(modelPath, {
             local_files_only: true,
-            dtype: "bnb4" // Use bnb4 for smallest size
+            // Use the exact configuration from GitHub issue (fp16_supported=false)
+            dtype: {
+                prepare_inputs_embeds: "fp32",
+                language_model: "q4",
+                lm_head: "fp32",
+                gen_head: "fp32",
+                gen_img_embeds: "fp32",
+                image_decode: "fp32",
+            },
+            // Use CPU for Node.js testing (browser will use WebGPU/WASM mix)
+            device: "cpu"
         });
 
-        console.log("Model loaded successfully!");
+        console.log("Model loaded successfully with WebGPU configuration!");
 
-        // Simple test with a placeholder image URL (you can replace with local image)
+        // Test with local sidewalk image
+        const imagePath = join(__dirname, "../data/samples/sidewalk.jpg");
+        console.log("Using image:", imagePath);
+
         const conversation = [
             {
                 role: "<|User|>",
-                content: "<image_placeholder>\nDescribe what you see in this image.",
-                images: ["https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/cats.jpg"],
+                content: "<image_placeholder>\nDescribe what you see in this image. What potential hazards or navigation challenges might exist?",
+                images: [imagePath],
             },
         ];
 
@@ -41,7 +60,7 @@ async function testJanusLocal() {
         console.log("Generating response...");
         const outputs = await model.generate({
             ...inputs,
-            max_new_tokens: 50,
+            max_new_tokens: 1000,
             do_sample: false,
         });
 
@@ -50,7 +69,7 @@ async function testJanusLocal() {
         const decoded = processor.batch_decode(new_tokens, { skip_special_tokens: true });
 
         console.log("Generated response:", decoded[0]);
-        // Generated response: In this image, I see two cats lying on a pink couch. There are two remote controls placed on the couch as well.
+        // Generated response: In the image, there is a sidewalk on the right side, which appears to be obstructed by a tree. The tree is partially blocking the sidewalk, creating a potential hazard for pedestrians, especially those with disabilities, strollers, or those using wheelchairs. Additionally, there is a black metal railing that is positioned to the right of the tree, which could be a hazard if it is not properly positioned or if it is not used correctly. The parked cars on the right also pose a navigation challenge, as they could obstruct the sidewalk and make it difficult for pedestrians to walk freely. The overall layout of the sidewalk and the parked cars could make it challenging for individuals with visual impairments to navigate the area safely.
 
     } catch (error) {
         console.error("Error testing Janus model:", error);

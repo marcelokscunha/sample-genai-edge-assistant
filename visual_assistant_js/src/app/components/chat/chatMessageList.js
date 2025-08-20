@@ -238,14 +238,23 @@ function ChatMessage({ message, onRetry }) {
         {/* Metadata for assistant messages */}
         {!isUser && message.metadata && (
           <Box variant="small" color="text-body-secondary">
+            {message.metadata.model && (
+              <span>{message.metadata.model}</span>
+            )}
+            {message.metadata.tokensPerSecond && (
+              <span> • {message.metadata.tokensPerSecond} tokens/sec</span>
+            )}
+            {message.metadata.tokenCount && (
+              <span> • {message.metadata.tokenCount} tokens</span>
+            )}
+            {message.metadata.elapsedTime && (
+              <span> • {message.metadata.elapsedTime}s</span>
+            )}
             {message.metadata.processingTime && (
-              <span>Processing: {message.metadata.processingTime}ms</span>
+              <span> • Processing: {message.metadata.processingTime}ms</span>
             )}
             {message.metadata.tokens && (
               <span> • Tokens: {message.metadata.tokens}</span>
-            )}
-            {message.metadata.model && (
-              <span> • Model: {message.metadata.model}</span>
             )}
           </Box>
         )}

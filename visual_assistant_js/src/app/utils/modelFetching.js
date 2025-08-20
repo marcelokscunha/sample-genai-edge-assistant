@@ -117,6 +117,7 @@ async function downloadAndCacheModel(modelKey, url, serverETag) {
   const store = useServiceSelectionStore.getState();
 
   try {
+    console.log('Downloading model:', modelKey, 'from URL:', url);
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
       onDownloadProgress: (progressEvent) => {
