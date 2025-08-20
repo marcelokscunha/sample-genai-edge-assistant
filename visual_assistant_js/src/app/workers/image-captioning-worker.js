@@ -17,9 +17,8 @@ env.allowRemoteModels = false;
 env.localModelPath = '/models/';
 
 env.backends.onnx.wasm.wasmPaths = {
-  // A
-  mjs: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort-wasm-simd-threaded.mjs',
-  wasm: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort-wasm-simd-threaded.wasm',
+  mjs: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort-wasm-simd-threaded.mjs',
+  wasm: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort-wasm-simd-threaded.wasm',
 };
 
 let captioning = null;
