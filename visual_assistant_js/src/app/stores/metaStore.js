@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 import { create } from 'zustand';
-import { sessionManager } from '../utils/sessionManager';
+import { sessionManager } from 'src/app/utils/sessionManager';
 
 const initialState = {
   configPanelOpen: false,

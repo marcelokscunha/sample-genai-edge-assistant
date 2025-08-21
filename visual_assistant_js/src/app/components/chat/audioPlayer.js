@@ -31,7 +31,7 @@ export default function AudioPlayer({ audioBlob, recordedDuration, onReRecord, o
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {return;}
 
     const handleLoadedMetadata = () => {
       // Use audio metadata duration if available, otherwise keep recorded duration
@@ -63,7 +63,7 @@ export default function AudioPlayer({ audioBlob, recordedDuration, onReRecord, o
   };
 
   const formatTime = (seconds) => {
-    if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '0:00';
+    if (!seconds || isNaN(seconds) || !isFinite(seconds)) {return '0:00';}
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -76,7 +76,7 @@ export default function AudioPlayer({ audioBlob, recordedDuration, onReRecord, o
       <SpaceBetween direction="horizontal" size="s" alignItems="center">
         <Button
           variant="icon"
-          iconName={isPlaying ? "pause" : "play"}
+          iconName={isPlaying ? 'pause' : 'play'}
           onClick={togglePlay}
         />
         <Box fontSize="body-s">

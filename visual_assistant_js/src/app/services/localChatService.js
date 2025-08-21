@@ -90,22 +90,22 @@ export class LocalChatService extends IChatService {
 
     // Add system prompt for visual assistant context
     conversation.push({
-      role: "<|System|>",
-      content: "You are a helpful visual assistant for visually impaired people.",
+      role: '<|System|>',
+      content: 'You are a helpful visual assistant for visually impaired people.',
     });
 
     // Handle multimodal content
     if (message.content.images && message.content.images.length > 0) {
       // For image + text conversation
       conversation.push({
-        role: "<|User|>",
+        role: '<|User|>',
         content: `<image_placeholder>\n${message.content.text || 'Describe this image.'}`,
         images: message.content.images,
       });
     } else {
       // Text-only conversation
       conversation.push({
-        role: "<|User|>",
+        role: '<|User|>',
         content: message.content.text || '',
       });
     }

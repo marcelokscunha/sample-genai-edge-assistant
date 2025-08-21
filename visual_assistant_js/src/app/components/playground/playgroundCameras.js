@@ -32,7 +32,7 @@ const BoundingBox = ({ box, sizes, id2label, threshold, videoRef }) => {
 
   // Get actual video dimensions dynamically
   const video = videoRef?.current;
-  if (!video) return null;
+  if (!video) {return null;}
 
   // Scale from MODEL input size to DISPLAYED video size
   const [modelWidth, modelHeight] = sizes; // [288, 224] from model
@@ -46,7 +46,6 @@ const BoundingBox = ({ box, sizes, id2label, threshold, videoRef }) => {
   const scaledYmin = ymin * scaleY;
   const scaledWidth = (xmax - xmin) * scaleX;
   const scaledHeight = (ymax - ymin) * scaleY;
-
 
 
   const boxStyle = {
@@ -139,7 +138,7 @@ const PlaygroundCamera = ({ depthDrawingCanvasRef }) => {
                 left: 0,
                 width: '100%',
                 height: '100%',
-                pointerEvents: 'none'
+                pointerEvents: 'none',
               }}
             >
               {overlay &&

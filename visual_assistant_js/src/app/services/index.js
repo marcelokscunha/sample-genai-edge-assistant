@@ -3,5 +3,5 @@
 
 export { IChatService, ChatServiceType } from './chatService.js';
 export { ChatServiceFactory } from './chatServiceFactory.js';
-export { SageMakerChatService } from './sageMakerChatService.js';
 export { LocalChatService } from './localChatService.js';
+// Note: SageMakerChatService is dynamically imported to avoid bundling AWS SDK on client side

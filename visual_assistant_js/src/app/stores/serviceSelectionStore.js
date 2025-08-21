@@ -29,17 +29,17 @@ export const useServiceSelectionStore = create((set, get) => ({
   validateAndUpdateModelStatus: async () => {
     const { remoteModelInfo } = get();
     const newModelStatus = {};
-    
+
     // Include chat models from CHAT_MODEL_MAP
     const allModels = [
       ...Object.values(WORKER_TO_MODEL_MAP).flat(),
-      ...Object.values({ chat: ['chat'] }).flat() // Add chat models
+      ...Object.values({ chat: ['chat'] }).flat(), // Add chat models
     ];
-    
+
     for (const model of allModels) {
       const manifest = await getCachedManifest(model);
       const remoteInfo = remoteModelInfo[model];
-      
+
       if (!manifest) {
         newModelStatus[model] = 'missing';
       } else if (!remoteInfo) {
@@ -50,7 +50,7 @@ export const useServiceSelectionStore = create((set, get) => ({
         // Compare ETags to detect updates
         const localETag = manifest.etag;
         const serverETag = remoteInfo.ETag;
-        
+
         if (localETag !== serverETag) {
           // Server has a newer version
           newModelStatus[model] = 'invalid';

@@ -145,8 +145,8 @@ export function useSpeechRecognition() {
         setIsListening(true);
         const modeText = `${currentMode} mode`;
         const allModes = ['playground', 'navigation', 'chat'];
-        const otherModes = allModes.filter(mode => mode !== currentMode);
-        const suggestions = otherModes.map(mode => `"switch to ${mode}"`).join(', ');
+        const otherModes = allModes.filter((mode) => mode !== currentMode);
+        const suggestions = otherModes.map((mode) => `"switch to ${mode}"`).join(', ');
 
         const initialUtterance = new SpeechSynthesisUtterance(
           `Voice control enabled. Currently in ${modeText}. Try saying ${suggestions}, or just "switch mode".`,

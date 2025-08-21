@@ -32,7 +32,7 @@ class ImageCaptioningPipelineSingleton {
   static model = 'image-captioning';
   static device = 'wasm';
 
-  static async getInstance(progress_callback = null) {
+  static async getInstance(progressCallback = null) {
     // Check if mobile device
     const isMobile =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -61,7 +61,7 @@ class ImageCaptioningPipelineSingleton {
           // Use fp16 if available, otherwise use fp32
           dtype: 'q8',
           quantized: true,
-          progress_callback,
+          progress_callback: progressCallback,
         },
       );
     } catch (e) {

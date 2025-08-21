@@ -67,8 +67,8 @@ export async function processImagesForBackend(images) {
       }
 
       content.push({
-        type: "image",
-        value: dataUri
+        type: 'image',
+        value: dataUri,
       });
 
     } catch (error) {
@@ -118,8 +118,8 @@ export async function processAudiosForBackend(audios) {
       }
 
       content.push({
-        type: "audio",
-        value: dataUri
+        type: 'audio',
+        value: dataUri,
       });
 
     } catch (error) {
@@ -158,8 +158,8 @@ export async function processMultimodalContent(messageContent) {
   // Add text content last
   if (messageContent.text?.trim()) {
     content.push({
-      type: "text",
-      value: messageContent.text.trim()
+      type: 'text',
+      value: messageContent.text.trim(),
     });
   }
 

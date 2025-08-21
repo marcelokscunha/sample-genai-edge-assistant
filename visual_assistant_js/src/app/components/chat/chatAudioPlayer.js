@@ -13,7 +13,7 @@ export default function ChatAudioPlayer({ audioUrl, duration: storedDuration, na
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {return;}
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleEnded = () => {
@@ -53,7 +53,7 @@ export default function ChatAudioPlayer({ audioUrl, duration: storedDuration, na
   };
 
   const formatTime = (seconds) => {
-    if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '0:00';
+    if (!seconds || isNaN(seconds) || !isFinite(seconds)) {return '0:00';}
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -62,13 +62,13 @@ export default function ChatAudioPlayer({ audioUrl, duration: storedDuration, na
   return (
     <Box>
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
-      
+
       <SpaceBetween direction="horizontal" size="s" alignItems="center">
         <Button
           variant="icon"
-          iconName={isPlaying ? "pause" : "play"}
+          iconName={isPlaying ? 'pause' : 'play'}
           onClick={togglePlay}
-          ariaLabel={isPlaying ? "Pause audio" : "Play audio"}
+          ariaLabel={isPlaying ? 'Pause audio' : 'Play audio'}
         />
         <Box fontSize="body-s" color="text-body-secondary">
           {formatTime(currentTime)} / {formatTime(duration)}

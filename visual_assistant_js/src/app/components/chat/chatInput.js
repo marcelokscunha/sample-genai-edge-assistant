@@ -25,7 +25,7 @@ import AudioRecorderPreview from './audioRecorderPreview';
  * File token group i18n strings
  */
 const fileTokenGroupI18nStrings = {
-  removeFileAriaLabel: index => `Remove file ${index + 1}`,
+  removeFileAriaLabel: (index) => `Remove file ${index + 1}`,
   limitShowFewer: 'Show fewer files',
   limitShowMore: 'Show more files',
   errorIconAriaLabel: 'Error',
@@ -53,17 +53,17 @@ export default function ChatInput({
   useEffect(() => {
     if (showCameraModal) {
       navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
+        .then((stream) => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
           }
         })
-        .catch(err => console.error('Camera error:', err));
+        .catch((err) => console.error('Camera error:', err));
     }
     return () => {
       // Cleanup camera when modal closes
       if (videoRef.current?.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
       }
     };
   }, [showCameraModal]);
@@ -76,9 +76,9 @@ export default function ChatInput({
       value: duration,
       writable: false,
       enumerable: true,
-      configurable: false
+      configurable: false,
     });
-    setFiles(prev => [...prev, audioFile]);
+    setFiles((prev) => [...prev, audioFile]);
     setShowAudioModal(false);
     // Return focus to text input after audio recording
     setTimeout(() => promptInputRef.current?.focus(), 100);
@@ -154,9 +154,9 @@ export default function ChatInput({
     }
 
     // Add image content if there are image files
-    const imageFiles = processedFiles.filter(f => f.type.startsWith('image/'));
+    const imageFiles = processedFiles.filter((f) => f.type.startsWith('image/'));
     if (imageFiles.length > 0) {
-      content.images = imageFiles.map(f => ({
+      content.images = imageFiles.map((f) => ({
         url: f.url,
         file: f.file,
         name: f.name,
@@ -168,9 +168,9 @@ export default function ChatInput({
     }
 
     // Add audio content if there are audio files
-    const audioFiles = processedFiles.filter(f => f.type.startsWith('audio/'));
+    const audioFiles = processedFiles.filter((f) => f.type.startsWith('audio/'));
     if (audioFiles.length > 0) {
-      content.audios = audioFiles.map(f => ({
+      content.audios = audioFiles.map((f) => ({
         url: f.url,
         file: f.file,
         name: f.name,
@@ -217,46 +217,46 @@ export default function ChatInput({
         disableSecondaryActionsPaddings
         spellcheck
         secondaryActions={
-          <Box padding={{ left: "xxs", top: "xs" }}>
+          <Box padding={{ left: 'xxs', top: 'xs' }}>
             <ButtonGroup
               ariaLabel="Chat actions"
               items={[
                 {
-                  type: "icon-button",
-                  id: "upload",
-                  iconName: "upload",
-                  text: "Upload files"
+                  type: 'icon-button',
+                  id: 'upload',
+                  iconName: 'upload',
+                  text: 'Upload files',
                 },
                 {
-                  type: "icon-button",
-                  id: "camera",
-                  iconName: "video-camera-on",
-                  text: "Take picture"
+                  type: 'icon-button',
+                  id: 'camera',
+                  iconName: 'video-camera-on',
+                  text: 'Take picture',
                 },
                 {
-                  type: "icon-button",
-                  id: "microphone",
-                  iconName: "microphone",
-                  text: "Record audio"
-                }
+                  type: 'icon-button',
+                  id: 'microphone',
+                  iconName: 'microphone',
+                  text: 'Record audio',
+                },
               ]}
               variant="icon"
               onItemClick={({ detail }) => {
                 switch (detail.id) {
-                  case 'upload':
-                    // Trigger file input click using ref
-                    if (fileInputRef.current) {
-                      fileInputRef.current.click();
-                    }
-                    break;
-                  case 'camera':
-                    setShowCameraModal(true);
-                    break;
-                  case 'microphone':
-                    setShowAudioModal(true);
-                    break;
-                  default:
-                    break;
+                case 'upload':
+                  // Trigger file input click using ref
+                  if (fileInputRef.current) {
+                    fileInputRef.current.click();
+                  }
+                  break;
+                case 'camera':
+                  setShowCameraModal(true);
+                  break;
+                case 'microphone':
+                  setShowAudioModal(true);
+                  break;
+                default:
+                  break;
                 }
               }}
             />
@@ -271,7 +271,7 @@ export default function ChatInput({
                 const selectedFiles = Array.from(e.target.files || []);
 
                 // Filter files to only allow JPEG, PNG, MP3, WAV, M4A
-                const allowedFiles = selectedFiles.filter(file => {
+                const allowedFiles = selectedFiles.filter((file) => {
                   const type = file.type.toLowerCase();
                   const name = file.name.toLowerCase();
 
@@ -288,7 +288,7 @@ export default function ChatInput({
                   console.warn('Some files were filtered out. Only JPEG, PNG, MP3, WAV, and M4A files are allowed.');
                 }
 
-                setFiles(prev => [...prev, ...allowedFiles]);
+                setFiles((prev) => [...prev, ...allowedFiles]);
                 // Clear the input value so the same file can be selected again
                 e.target.value = '';
                 // Return focus to text input after file selection
@@ -303,7 +303,7 @@ export default function ChatInput({
               accept=".jpg,.jpeg,.png,.mp3,.wav,.m4a"
               onChange={({ detail }) => {
                 // Filter files to only allow JPEG, PNG, MP3, WAV, M4A
-                const allowedFiles = detail.value.filter(file => {
+                const allowedFiles = detail.value.filter((file) => {
                   const type = file.type.toLowerCase();
                   const name = file.name.toLowerCase();
 
@@ -320,7 +320,7 @@ export default function ChatInput({
                   console.warn('Some files were filtered out. Only JPEG, PNG, MP3, WAV, and M4A files are allowed.');
                 }
 
-                setFiles(prev => [...prev, ...allowedFiles]);
+                setFiles((prev) => [...prev, ...allowedFiles]);
                 // Return focus to text input after drag & drop
                 setTimeout(() => promptInputRef.current?.focus(), 100);
               }}
@@ -335,10 +335,10 @@ export default function ChatInput({
               <FileTokenGroup
                 items={files.map((file, index) => ({
                   file,
-                  key: `input-file-${index}-${file.name}`
+                  key: `input-file-${index}-${file.name}`,
                 }))}
                 onDismiss={({ detail }) => {
-                  setFiles(files => files.filter((_, index) => index !== detail.fileIndex));
+                  setFiles((files) => files.filter((_, index) => index !== detail.fileIndex));
                   if (files.length === 1) {
                     promptInputRef.current?.focus();
                   }
@@ -374,10 +374,10 @@ export default function ChatInput({
                   const ctx = canvas.getContext('2d');
                   ctx.drawImage(video, 0, 0);
 
-                  canvas.toBlob(blob => {
+                  canvas.toBlob((blob) => {
                     if (blob) {
                       const file = new File([blob], `camera-${Date.now()}.png`, { type: 'image/png' });
-                      setFiles(prev => [...prev, file]);
+                      setFiles((prev) => [...prev, file]);
                     }
                   });
                 }

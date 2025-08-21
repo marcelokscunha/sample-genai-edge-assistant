@@ -55,7 +55,7 @@ export default function ChatModelModal({ visible, onDismiss, onModelReady }) {
     try {
       const manifest = await getCachedManifest('chat');
       const remoteInfo = remoteModelInfo['chat'];
-      
+
       if (!manifest) {
         setModelStatus('missing');
       } else if (!remoteInfo) {
@@ -66,7 +66,7 @@ export default function ChatModelModal({ visible, onDismiss, onModelReady }) {
         // Compare ETags to detect updates
         const localETag = manifest.etag;
         const serverETag = remoteInfo.ETag;
-        
+
         if (localETag !== serverETag) {
           // Server has newer version
           setModelStatus('outdated');
@@ -86,7 +86,7 @@ export default function ChatModelModal({ visible, onDismiss, onModelReady }) {
   };
 
   const fetchRemoteModelInfo = async () => {
-    if (authStatus !== 'authenticated') return;
+    if (authStatus !== 'authenticated') {return;}
 
     try {
       const modelUrlData = await fetchModelUrl();
@@ -123,18 +123,18 @@ export default function ChatModelModal({ visible, onDismiss, onModelReady }) {
 
   const getStatusIndicator = () => {
     switch (modelStatus) {
-      case 'ready':
-        return <StatusIndicator type="success">Model ready</StatusIndicator>;
-      case 'missing':
-        return <StatusIndicator type="warning">Model not downloaded</StatusIndicator>;
-      case 'invalid':
-        return <StatusIndicator type="error">Model corrupted</StatusIndicator>;
-      case 'outdated':
-        return <StatusIndicator type="warning">New version available</StatusIndicator>;
-      case 'checking':
-        return <StatusIndicator type="pending">Checking model...</StatusIndicator>;
-      default:
-        return <StatusIndicator type="error">Unknown status</StatusIndicator>;
+    case 'ready':
+      return <StatusIndicator type="success">Model ready</StatusIndicator>;
+    case 'missing':
+      return <StatusIndicator type="warning">Model not downloaded</StatusIndicator>;
+    case 'invalid':
+      return <StatusIndicator type="error">Model corrupted</StatusIndicator>;
+    case 'outdated':
+      return <StatusIndicator type="warning">New version available</StatusIndicator>;
+    case 'checking':
+      return <StatusIndicator type="pending">Checking model...</StatusIndicator>;
+    default:
+      return <StatusIndicator type="error">Unknown status</StatusIndicator>;
     }
   };
 

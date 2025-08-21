@@ -60,7 +60,7 @@ export const validateImageFile = async (file) => {
     const hasValidExtension = IMAGE_VALIDATION.ALLOWED_EXTENSIONS.test(file.name.toLowerCase());
 
     if (!isValidType && !hasValidExtension) {
-      errors.push(`Unsupported file format. Please use JPG, PNG, or WebP files.`);
+      errors.push('Unsupported file format. Please use JPG, PNG, or WebP files.');
     }
 
     // Check image dimensions

@@ -9,7 +9,6 @@ import {
   SpeechT5HifiGan,
   Tensor,
   env,
-  stack,
 } from '@huggingface/transformers';
 import { setupWorkerLogging } from 'src/app/utils/workerLogging.js';
 import { WaveFile } from 'wavefile';
@@ -37,7 +36,7 @@ class AudioPipelineSingleton {
   static model = 'tts';
   static device = 'wasm';
 
-  static async getInstance(progress_callback = null) {
+  static async getInstance() {
     this.tokenizer = await AutoTokenizer.from_pretrained(this.model, {
       device: this.device,
       dtype: 'q8',
@@ -58,7 +57,7 @@ class VocoderPipelineSingleton {
   static model = 'vocoder';
   static device = 'wasm';
 
-  static async getInstance(progress_callback = null) {
+  static async getInstance() {
     this.vocoder = await SpeechT5HifiGan.from_pretrained(this.model, {
       device: this.device,
       dtype: 'q8',

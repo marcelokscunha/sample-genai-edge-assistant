@@ -1,14 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 
-import { processMultimodalContent } from '../utils/multimodalProcessing.js';
+import { processMultimodalContent } from 'src/app/utils/multimodalProcessing.js';
 
 /**
  * Service type enumeration for chat backends
  */
 export const ChatServiceType = {
   SAGEMAKER: 'sagemaker',
-  LOCAL_BROWSER: 'local_browser'
+  LOCAL_BROWSER: 'local_browser',
 };
 
 /**

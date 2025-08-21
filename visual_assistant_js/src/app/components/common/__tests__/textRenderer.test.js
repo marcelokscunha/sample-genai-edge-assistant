@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import TextRenderer, { useHasMarkdown } from '../textRenderer';
+import TextRenderer, { useHasMarkdown } from 'src/app/components/common/textRenderer';
 
 // Mock react-markdown
 jest.mock('react-markdown', () => {
@@ -24,7 +24,7 @@ describe('TextRenderer', () => {
   test('renders markdown text using react-markdown', () => {
     const markdownText = '**Bold text** and *italic text*';
     render(<TextRenderer text={markdownText} />);
-    
+
     // Should use react-markdown for text with markdown patterns
     expect(screen.getByTestId('markdown-content')).toBeInTheDocument();
     expect(screen.getByTestId('markdown-content')).toHaveTextContent(markdownText);
@@ -33,7 +33,7 @@ describe('TextRenderer', () => {
   test('forces markdown rendering when forceMarkdown is true', () => {
     const plainText = 'Just plain text';
     render(<TextRenderer text={plainText} forceMarkdown={true} />);
-    
+
     // Should use react-markdown even for plain text when forced
     expect(screen.getByTestId('markdown-content')).toBeInTheDocument();
   });
@@ -51,7 +51,7 @@ describe('TextRenderer', () => {
   test('preserves line breaks in plain text', () => {
     const multilineText = 'Line 1\nLine 2\nLine 3';
     render(<TextRenderer text={multilineText} />);
-    
+
     // Should render with line breaks preserved
     expect(screen.getByText('Line 1')).toBeInTheDocument();
     expect(screen.getByText('Line 2')).toBeInTheDocument();
@@ -91,10 +91,10 @@ describe('useHasMarkdown', () => {
       '1. numbered item',
       '> blockquote',
       '[link](url)',
-      '| table | header |'
+      '| table | header |',
     ];
 
-    patterns.forEach(pattern => {
+    patterns.forEach((pattern) => {
       const TestComponent = () => {
         const hasMarkdown = useHasMarkdown(pattern);
         return <div data-testid={`pattern-${pattern.charAt(0)}`}>{hasMarkdown.toString()}</div>;

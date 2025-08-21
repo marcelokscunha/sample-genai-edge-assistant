@@ -17,7 +17,7 @@ import {
   isMultimodalMessage,
   getContentSummary,
   validateMessage,
-} from '../chatUtils.js';
+} from 'src/app/utils/chatUtils.js';
 
 describe('ChatUtils', () => {
   describe('Message Creation Functions', () => {

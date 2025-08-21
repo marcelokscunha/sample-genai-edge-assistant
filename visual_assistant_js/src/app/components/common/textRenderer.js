@@ -14,8 +14,8 @@ import styles from './textRenderer.module.css';
  * @returns {boolean} - Whether the text appears to contain markdown
  */
 function hasMarkdownPatterns(text) {
-  if (!text || typeof text !== 'string') return false;
-  
+  if (!text || typeof text !== 'string') {return false;}
+
   const markdownPatterns = [
     /^#{1,6}\s+/m,           // Headers
     /\*\*.*?\*\*/,           // Bold
@@ -28,8 +28,8 @@ function hasMarkdownPatterns(text) {
     /\[.*?\]\(.*?\)/,        // Links
     /^\s*\|.*\|/m,           // Tables
   ];
-  
-  return markdownPatterns.some(pattern => pattern.test(text));
+
+  return markdownPatterns.some((pattern) => pattern.test(text));
 }
 
 /**
@@ -43,39 +43,39 @@ const markdownComponents = {
   h4: ({ children }) => <h4 className={styles.h4}>{children}</h4>,
   h5: ({ children }) => <h5 className={styles.h5}>{children}</h5>,
   h6: ({ children }) => <h6 className={styles.h6}>{children}</h6>,
-  
+
   // Code
-  code: ({ inline, children }) => 
+  code: ({ inline, children }) =>
     inline ? (
       <code className={styles.inlineCode}>{children}</code>
     ) : (
       <code className={styles.blockCode}>{children}</code>
     ),
-  
+
   pre: ({ children }) => <pre className={styles.pre}>{children}</pre>,
-  
+
   // Links
   a: ({ href, children }) => (
-    <a 
-      href={href} 
-      target="_blank" 
+    <a
+      href={href}
+      target="_blank"
       rel="noopener noreferrer"
       className={styles.link}
     >
       {children}
     </a>
   ),
-  
+
   // Blockquotes
   blockquote: ({ children }) => (
     <blockquote className={styles.blockquote}>{children}</blockquote>
   ),
-  
+
   // Lists
   ul: ({ children }) => <ul className={styles.ul}>{children}</ul>,
   ol: ({ children }) => <ol className={styles.ol}>{children}</ol>,
   li: ({ children }) => <li className={styles.li}>{children}</li>,
-  
+
   // Paragraphs
   p: ({ children }) => <p className={styles.p}>{children}</p>,
 };
@@ -88,21 +88,21 @@ const markdownComponents = {
  * @param {Object} props.style - Additional CSS styles
  * @param {string} props.className - Additional CSS classes
  */
-export default function TextRenderer({ 
-  text, 
+export default function TextRenderer({
+  text,
   forceMarkdown = false,
-  style = {}, 
+  style = {},
   className = '',
-  ...props 
+  ...props
 }) {
-  if (!text) return null;
-  
+  if (!text) {return null;}
+
   // Determine if we should render as markdown
   const shouldRenderMarkdown = forceMarkdown || hasMarkdownPatterns(text);
-  
+
   if (shouldRenderMarkdown) {
     return (
-      <Box 
+      <Box
         className={`${styles.textRenderer} ${className}`}
         style={style}
         {...props}
@@ -116,12 +116,12 @@ export default function TextRenderer({
       </Box>
     );
   }
-  
+
   // Render as plain text with line breaks preserved
   const lines = text.split('\n');
-  
+
   return (
-    <Box 
+    <Box
       className={`${styles.textRenderer} ${className}`}
       style={style}
       {...props}

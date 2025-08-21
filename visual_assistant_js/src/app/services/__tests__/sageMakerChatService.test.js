@@ -70,7 +70,7 @@ describe('SageMakerChatService', () => {
 
   test('sends message with correct payload format', async () => {
     const mockResponse = {
-      Body: new TextEncoder().encode(JSON.stringify({ generated_text: 'Hello back!' }))
+      Body: new TextEncoder().encode(JSON.stringify({ generated_text: 'Hello back!' })),
     };
     mockSend.mockResolvedValue(mockResponse);
 
@@ -88,8 +88,8 @@ describe('SageMakerChatService', () => {
         parameters: {
           max_new_tokens: 512,
           temperature: 0.7,
-        }
-      }))
+        },
+      })),
     });
     expect(mockSend).toHaveBeenCalledTimes(1);
     expect(result.content.text).toBe('Hello back!');
@@ -98,7 +98,7 @@ describe('SageMakerChatService', () => {
 
   test('handles multimodal message with image', async () => {
     const mockResponse = {
-      Body: new TextEncoder().encode(JSON.stringify({ generated_text: 'I see an image!' }))
+      Body: new TextEncoder().encode(JSON.stringify({ generated_text: 'I see an image!' })),
     };
     mockSend.mockResolvedValue(mockResponse);
 
@@ -106,8 +106,8 @@ describe('SageMakerChatService', () => {
     const message = {
       content: {
         text: 'What do you see?',
-        image: new ArrayBuffer(8) // Mock image data
-      }
+        image: new ArrayBuffer(8), // Mock image data
+      },
     };
 
     const result = await service.sendMessage(message);
@@ -121,8 +121,8 @@ describe('SageMakerChatService', () => {
         parameters: {
           max_new_tokens: 512,
           temperature: 0.7,
-        }
-      }))
+        },
+      })),
     });
     expect(result.content.text).toBe('I see an image!');
   });
@@ -147,16 +147,16 @@ describe('SageMakerChatService', () => {
         async *[Symbol.asyncIterator]() {
           yield {
             PayloadPart: {
-              Bytes: new TextEncoder().encode(JSON.stringify({ token: { text: 'Hello' } }))
-            }
+              Bytes: new TextEncoder().encode(JSON.stringify({ token: { text: 'Hello' } })),
+            },
           };
           yield {
             PayloadPart: {
-              Bytes: new TextEncoder().encode(JSON.stringify({ token: { text: ' back!' } }))
-            }
+              Bytes: new TextEncoder().encode(JSON.stringify({ token: { text: ' back!' } })),
+            },
           };
-        }
-      }
+        },
+      },
     };
     mockSend.mockResolvedValue(mockStreamingResponse);
 
@@ -171,8 +171,8 @@ describe('SageMakerChatService', () => {
         parameters: {
           max_new_tokens: 512,
           temperature: 0.7,
-        }
-      }))
+        },
+      })),
     });
     expect(result.content.text).toBe('Hello back!');
     expect(result.metadata.model).toBe('sagemaker-streaming');

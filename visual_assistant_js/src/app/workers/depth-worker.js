@@ -26,7 +26,7 @@ class DepthPipelineSingleton {
   static model = 'depth';
   static device = 'wasm';
 
-  static async getInstance(progress_callback = null) {
+  static async getInstance(progressCallback = null) {
     // Check if mobile device
     const isMobile =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -57,7 +57,7 @@ class DepthPipelineSingleton {
       // Use fp16 if available, otherwise use fp32
       dtype: 'q8',
       quantized: true,
-      progress_callback,
+      progress_callback: progressCallback,
     });
 
     this.objectDepthProcessor = await AutoProcessor.from_pretrained(this.model);
@@ -146,7 +146,7 @@ self.addEventListener('message', async (event) => {
 
     // Predict depth map
     const data = predicted_depth.data;
-    const [bs, oh, ow] = predicted_depth.dims;
+    const [, oh, ow] = predicted_depth.dims;
 
     // Normalize the depth map
     let min = Infinity;

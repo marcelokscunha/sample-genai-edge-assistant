@@ -24,9 +24,9 @@ export const ScrollableContainer = forwardRef(function ScrollableContainer(
 ) {
   return (
     <div style={{ position: 'relative', blockSize: '100%' }}>
-      <div 
-        style={{ position: 'absolute', inset: 0, overflowY: 'auto' }} 
-        ref={ref} 
+      <div
+        style={{ position: 'absolute', inset: 0, overflowY: 'auto' }}
+        ref={ref}
         data-testid="chat-scroll-container"
       >
         {children}

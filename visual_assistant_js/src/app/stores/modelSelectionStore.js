@@ -20,8 +20,8 @@ const defaultModels = [
 export const useModelSelectionStore = create((set, get) => ({
   currentModel: defaultModels[0],
   availableModels: defaultModels,
-  
+
   setCurrentModel: (model) => set({ currentModel: model }),
-  
-  getReadyModels: () => get().availableModels.filter(m => m.status === 'ready'),
+
+  getReadyModels: () => get().availableModels.filter((m) => m.status === 'ready'),
 }));

@@ -25,7 +25,7 @@ class DetectionPipelineSingleton {
   static model = 'object-detection';
   static device = 'wasm';
 
-  static async getInstance(progress_callback = null) {
+  static async getInstance(progressCallback = null) {
     // Check if mobile device
     const isMobile =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -51,19 +51,19 @@ class DetectionPipelineSingleton {
     }
 
     // Load YOLOv9 model and processor (same as working test page)
-    console.log("Loading object detection model...");
+    console.log('Loading object detection model...');
 
     this.objectDetectionModel = await AutoModel.from_pretrained(this.model, {
-      dtype: "q8",
+      dtype: 'q8',
       quantized: true,
-      progress_callback
+      progress_callback: progressCallback,
     });
 
     this.objectDetectionProcessor = await AutoProcessor.from_pretrained(
       this.model,
     );
 
-    console.log("Model loaded successfully");
+    console.log('Model loaded successfully');
     this.threshold = 70; // from 0 to 100
 
     return this;
@@ -152,7 +152,7 @@ self.addEventListener('message', async (event) => {
       const roundedClassId = Math.round(classId);
       return [xmin, ymin, xmax, ymax, confidence, roundedClassId];
     });
-    
+
     // Get sizes for UI
     const sizes = inputs.reshaped_input_sizes[0].reverse(); // [width, height]
 

@@ -6,8 +6,8 @@
  * Run with: npm test
  */
 
-import { useChatStore } from '../chatStore.js';
-import { createTextMessage, createAssistantMessage } from '../../utils/chatUtils.js';
+import { useChatStore } from 'src/app/stores/chatStore.js';
+import { createTextMessage, createAssistantMessage } from 'src/app/utils/chatUtils.js';
 
 describe('ChatStore', () => {
   beforeEach(() => {

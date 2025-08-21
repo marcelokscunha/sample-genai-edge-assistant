@@ -16,18 +16,18 @@ import {
   ButtonDropdown,
 } from '@cloudscape-design/components';
 import { getCurrentUser } from 'aws-amplify/auth';
-import ConfigurationPanel from '../playground/configurationPanel';
-import CustomHelpPanel from '../playground/helpPanel';
-import { useMetaStore } from '../../stores/metaStore';
-import { useChatStore } from '../../stores/chatStore';
-import { useModelSelectionStore } from '../../stores/modelSelectionStore';
-import { useServiceSelectionStore } from '../../stores/serviceSelectionStore';
-import { ChatServiceFactory } from '../../services/chatServiceFactory';
-import TopBar from '../topBar';
+import ConfigurationPanel from 'src/app/components/playground/configurationPanel';
+import CustomHelpPanel from 'src/app/components/playground/helpPanel';
+import { useMetaStore } from 'src/app/stores/metaStore';
+import { useChatStore } from 'src/app/stores/chatStore';
+import { useModelSelectionStore } from 'src/app/stores/modelSelectionStore';
+import { useServiceSelectionStore } from 'src/app/stores/serviceSelectionStore';
+import { ChatServiceFactory } from 'src/app/services/chatServiceFactory';
+import TopBar from 'src/app/components/topBar';
 import ChatMessageList from './chatMessageList';
 import ChatInput from './chatInput';
 import ChatModelModal from './chatModelModal';
-import { getCachedManifest, validateCachedFiles } from '../../utils/modelFetching';
+import { getCachedManifest, validateCachedFiles } from 'src/app/utils/modelFetching';
 
 /**
  * ChatMode component - Main container for the chat interface
@@ -49,7 +49,7 @@ export default function ChatMode() {
 
   const { messages, error: chatError, isLoading: chatLoading, clearChat, addMessage, hasMessages } = useChatStore();
   const { currentModel, availableModels, setCurrentModel } = useModelSelectionStore();
-  
+
   const messagesContainerRef = useRef(null);
 
   useEffect(() => {
@@ -75,19 +75,19 @@ export default function ChatMode() {
     const checkLocalModel = async () => {
       try {
         // First fetch remote model info to compare ETags
-        const { fetchModelUrl } = await import('../../utils/modelFetching.js');
+        const { fetchModelUrl } = await import('src/app/utils/modelFetching.js');
         const { updateRemoteModelInfo, validateAndUpdateModelStatus } = useServiceSelectionStore.getState();
-        
+
         try {
           const modelUrlData = await fetchModelUrl();
           updateRemoteModelInfo(modelUrlData);
         } catch (error) {
           console.log('Could not fetch remote model info:', error);
         }
-        
+
         // Then validate local model status
         await validateAndUpdateModelStatus();
-        
+
         const manifest = await getCachedManifest('chat');
         if (manifest) {
           const isValid = await validateCachedFiles('chat', manifest);
@@ -109,7 +109,7 @@ export default function ChatMode() {
       // Check if model needs download or update
       const { getModelDownloadStatus } = useServiceSelectionStore.getState();
       const status = getModelDownloadStatus('chat');
-      
+
       if (['needsDownload', 'outdated', 'unavailable'].includes(status)) {
         // Show modal to download/update model
         setShowModelModal(true);
@@ -132,11 +132,11 @@ export default function ChatMode() {
       console.log('Model already loading or ready, skipping initialization');
       return;
     }
-    
+
     setModelLoadingStatus('loading');
     try {
       // Create a persistent chat service
-      const { LocalChatService } = await import('../../services/localChatService.js');
+      const { LocalChatService } = await import('src/app/services/localChatService.js');
       const service = new LocalChatService();
       await service.initializeWorker();
       setChatService(service);
@@ -151,7 +151,7 @@ export default function ChatMode() {
     setLocalModelReady(true);
     setShowModelModal(false);
     // Set the local model as current and initialize it
-    const localModel = availableModels.find(m => m.type === 'local');
+    const localModel = availableModels.find((m) => m.type === 'local');
     if (localModel) {
       setCurrentModel(localModel);
       await initializeLocalModel();
@@ -175,7 +175,6 @@ export default function ChatMode() {
       setModelLoadingStatus('idle');
     }
   }, [currentModel, chatService]);
-
 
 
   const handleSendMessage = async (message) => {
@@ -227,11 +226,11 @@ export default function ChatMode() {
       if (currentModel?.type === 'local' && chatService) {
         service = chatService; // Reuse the persistent service
       } else {
-        service = ChatServiceFactory.createService(currentModel);
+        service = await ChatServiceFactory.createService(currentModel);
       }
-      
+
       const response = await service.sendMessage(message, useStreaming);
-      
+
       // Update the loading message with the actual response
       const { updateMessage } = useChatStore.getState();
       updateMessage(assistantLoadingId, {
@@ -241,7 +240,7 @@ export default function ChatMode() {
       });
     } catch (error) {
       console.error('Failed to send message:', error);
-      
+
       // Update the assistant loading message to show error
       const { updateMessage } = useChatStore.getState();
       updateMessage(assistantLoadingId, {
@@ -251,7 +250,6 @@ export default function ChatMode() {
       });
     }
   };
-
 
 
   // Loading state during authentication check
@@ -363,15 +361,15 @@ export default function ChatMode() {
             actions={
               <SpaceBetween direction="horizontal" size="xs">
                 <ButtonDropdown
-                  items={availableModels.map(m => ({ 
-                    id: m.id, 
+                  items={availableModels.map((m) => ({
+                    id: m.id,
                     text: m.name,
-                    iconName: m.type === 'local' && localModelReady && modelLoadingStatus === 'ready' ? 'status-positive' : 
-                             m.type === 'local' && modelLoadingStatus === 'loading' ? 'status-pending' :
-                             m.type === 'local' && modelLoadingStatus === 'error' ? 'status-negative' : undefined
+                    iconName: m.type === 'local' && localModelReady && modelLoadingStatus === 'ready' ? 'status-positive' :
+                      m.type === 'local' && modelLoadingStatus === 'loading' ? 'status-pending' :
+                        m.type === 'local' && modelLoadingStatus === 'error' ? 'status-negative' : undefined,
                   }))}
                   onItemClick={({ detail }) => {
-                    const model = availableModels.find(m => m.id === detail.id);
+                    const model = availableModels.find((m) => m.id === detail.id);
                     handleModelSelection(model);
                   }}
                   loading={modelLoadingStatus === 'loading'}
@@ -380,7 +378,7 @@ export default function ChatMode() {
                   {currentModel?.type === 'local' && modelLoadingStatus === 'loading' && ' (Loading...)'}
                 </ButtonDropdown>
 
-                <Button 
+                <Button
                   variant={useStreaming ? 'primary' : 'normal'}
                   onClick={() => setUseStreaming(!useStreaming)}
                 >
@@ -410,7 +408,7 @@ export default function ChatMode() {
               </SpaceBetween>
             </Alert>
           )}
-          
+
           {currentModel?.type === 'local' && modelLoadingStatus === 'error' && (
             <Alert type="error" header="Model Loading Failed">
               Failed to initialize the local chat model. Please try selecting the model again.
@@ -426,13 +424,13 @@ export default function ChatMode() {
               borderRadius: '8px',
               padding: '16px',
               overflowY: 'auto',
-              backgroundColor: '#fafbfc'
+              backgroundColor: '#fafbfc',
             }}
           >
             <ChatMessageList
               messages={messages}
               isLoading={chatLoading}
-              onRetry={() => {}}
+              onRetry={() => { }}
               messagesContainerRef={messagesContainerRef}
             />
           </div>
@@ -476,7 +474,7 @@ export default function ChatMode() {
         contentType="default"
         toolsWidth={300}
       />
-      
+
       {/* Chat Model Download Modal */}
       <ChatModelModal
         visible={showModelModal}

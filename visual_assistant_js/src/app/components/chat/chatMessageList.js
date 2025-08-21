@@ -16,7 +16,7 @@ import Avatar from '@cloudscape-design/chat-components/avatar';
 import ChatBubble from '@cloudscape-design/chat-components/chat-bubble';
 import LoadingBar from '@cloudscape-design/chat-components/loading-bar';
 import ChatAudioPlayer from './chatAudioPlayer';
-import TextRenderer from '../common/textRenderer';
+import TextRenderer from 'src/app/components/common/textRenderer';
 
 /**
  * Individual chat message component using Cloudscape Chat Components
@@ -62,7 +62,7 @@ function ChatMessage({ message, onRetry }) {
         return (
           <LiveRegion>
             <Box
-              margin={{ bottom: "xs" }}
+              margin={{ bottom: 'xs' }}
               color="text-body-secondary"
             >
               {isRetrying ? 'Retrying...' : 'Generating response'}
@@ -88,7 +88,7 @@ function ChatMessage({ message, onRetry }) {
             text={content.text}
             style={{
               maxWidth: '100%',
-              wordWrap: 'break-word'
+              wordWrap: 'break-word',
             }}
           />
         )}
@@ -188,14 +188,14 @@ function ChatMessage({ message, onRetry }) {
               readOnly
               items={content.files.map((fileData, index) => ({
                 file: fileData.file || fileData,
-                key: `file-${index}-${fileData.name || 'unknown'}`
+                key: `file-${index}-${fileData.name || 'unknown'}`,
               }))}
               limit={3}
               onDismiss={() => {/* read only */ }}
               alignment="horizontal"
               showFileThumbnail={false} // Disable thumbnails to avoid empty src issues
               i18nStrings={{
-                removeFileAriaLabel: index => `Remove file ${index + 1}`,
+                removeFileAriaLabel: (index) => `Remove file ${index + 1}`,
                 limitShowFewer: 'Show fewer files',
                 limitShowMore: 'Show more files',
                 errorIconAriaLabel: 'Error',
@@ -334,7 +334,7 @@ export default function ChatMessageList({ messages = [], isLoading = false, onRe
           {isLoading && (
             <LiveRegion>
               <Box
-                margin={{ bottom: "xs", left: "l" }}
+                margin={{ bottom: 'xs', left: 'l' }}
                 color="text-body-secondary"
               >
                 Generating a response

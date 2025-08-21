@@ -5,12 +5,12 @@ describe('ChatMode Logic', () => {
   test('authentication state handling logic', async () => {
     // Test the logic for handling authenticated vs unauthenticated states
     const mockGetCurrentUser = jest.fn();
-    
+
     // Test successful authentication
     mockGetCurrentUser.mockResolvedValue({ username: 'testuser' });
     const user = await mockGetCurrentUser();
     expect(user.username).toBe('testuser');
-    
+
     // Test authentication failure
     mockGetCurrentUser.mockRejectedValue(new Error('Not authenticated'));
     await expect(mockGetCurrentUser()).rejects.toThrow('Not authenticated');
@@ -21,7 +21,7 @@ describe('ChatMode Logic', () => {
     const mockChatStore = {
       messages: [
         { id: '1', type: 'user', content: { text: 'Hello' }, timestamp: new Date() },
-        { id: '2', type: 'assistant', content: { text: 'Hi there!' }, timestamp: new Date() }
+        { id: '2', type: 'assistant', content: { text: 'Hi there!' }, timestamp: new Date() },
       ],
       error: null,
       isLoading: false,
@@ -53,7 +53,7 @@ describe('ChatMode Logic', () => {
       currentModel: { id: 'sagemaker-gemma', name: 'Gemma 3n', type: 'sagemaker', status: 'ready' },
       availableModels: [
         { id: 'sagemaker-gemma', name: 'Gemma 3n', type: 'sagemaker', status: 'ready' },
-        { id: 'local-llm', name: 'Local LLM', type: 'local', status: 'unavailable' }
+        { id: 'local-llm', name: 'Local LLM', type: 'local', status: 'unavailable' },
       ],
       setCurrentModel: jest.fn(),
     };
@@ -93,12 +93,12 @@ describe('ChatMode Logic', () => {
       { error: null, isLoading: false, expected: 'normal' },
       { error: 'Network error', isLoading: false, expected: 'error' },
       { error: null, isLoading: true, expected: 'loading' },
-      { error: 'Authentication failed', isLoading: false, expected: 'auth_error' }
+      { error: 'Authentication failed', isLoading: false, expected: 'auth_error' },
     ];
 
-    errorStates.forEach(state => {
+    errorStates.forEach((state) => {
       let componentState = 'normal';
-      
+
       if (state.error && state.error.includes('Authentication')) {
         componentState = 'auth_error';
       } else if (state.error) {
@@ -117,13 +117,13 @@ describe('ChatMode Logic', () => {
       { id: '1', type: 'user', content: { text: 'Hello' } },
       { id: '2', type: 'assistant', content: { text: 'Hi!' } },
       { id: '3', type: 'user', content: { text: 'How are you?', image: new ArrayBuffer(8) } },
-      { id: '4', type: 'assistant', content: { text: 'I am doing well!' } }
+      { id: '4', type: 'assistant', content: { text: 'I am doing well!' } },
     ];
 
     // Test message filtering
-    const userMessages = messages.filter(m => m.type === 'user');
-    const assistantMessages = messages.filter(m => m.type === 'assistant');
-    const multimodalMessages = messages.filter(m => m.content.image);
+    const userMessages = messages.filter((m) => m.type === 'user');
+    const assistantMessages = messages.filter((m) => m.type === 'assistant');
+    const multimodalMessages = messages.filter((m) => m.content.image);
 
     expect(userMessages).toHaveLength(2);
     expect(assistantMessages).toHaveLength(2);
@@ -136,12 +136,12 @@ describe('ChatMode Logic', () => {
       { isLoading: false, hasMessages: true, expected: 'chat_ready' },
       { isLoading: true, hasMessages: true, expected: 'sending_message' },
       { isLoading: false, hasMessages: false, expected: 'empty_chat' },
-      { isLoading: true, hasMessages: false, expected: 'initializing' }
+      { isLoading: true, hasMessages: false, expected: 'initializing' },
     ];
 
-    loadingStates.forEach(state => {
+    loadingStates.forEach((state) => {
       let uiState = 'chat_ready';
-      
+
       if (state.isLoading && !state.hasMessages) {
         uiState = 'initializing';
       } else if (state.isLoading && state.hasMessages) {
@@ -161,10 +161,10 @@ describe('ChatMode Logic', () => {
     const hideModal = () => { modalVisible = false; };
 
     expect(modalVisible).toBe(false);
-    
+
     showModal();
     expect(modalVisible).toBe(true);
-    
+
     hideModal();
     expect(modalVisible).toBe(false);
   });

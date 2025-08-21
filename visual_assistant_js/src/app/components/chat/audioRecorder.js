@@ -23,7 +23,7 @@ export default function AudioRecorder({ onAudioReady, onCancel, disabled = false
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => {
-        setDuration(prev => {
+        setDuration((prev) => {
           const newDuration = prev + 1;
           durationRef.current = newDuration; // Keep ref in sync
           return newDuration;
@@ -85,7 +85,7 @@ export default function AudioRecorder({ onAudioReady, onCancel, disabled = false
   };
 
   const cleanup = () => {
-    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
     clearInterval(timerRef.current);
     setIsRecording(false);
     setDuration(0);
@@ -102,7 +102,7 @@ export default function AudioRecorder({ onAudioReady, onCancel, disabled = false
   return (
     <SpaceBetween size="s">
       {error && <Alert type="error">{error}</Alert>}
-      
+
       <Box fontSize="body-m" fontWeight="bold">
         {formatTime(duration)}
       </Box>

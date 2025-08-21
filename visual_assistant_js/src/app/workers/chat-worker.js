@@ -25,7 +25,7 @@ class ChatPipelineSingleton {
   static model = 'chat';
   static device = 'wasm';
 
-  static async getInstance(progress_callback = null) {
+  static async getInstance(progressCallback = null) {
     // Check if mobile device
     const isMobile =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -58,7 +58,7 @@ class ChatPipelineSingleton {
       try {
         this.processor = await AutoProcessor.from_pretrained(this.model, {
           local_files_only: true, // Ensure it only uses cached files
-          progress_callback,
+          progress_callback: progressCallback,
         });
         console.log('Processor loaded successfully');
       } catch (processorError) {
@@ -72,43 +72,42 @@ class ChatPipelineSingleton {
         console.log('Loading model with device:', this.device);
 
         // Configure model with mixed device setup for WebGPU compatibility
-        const fp16_supported = true; // Feature check for fp16 support
 
         const modelConfig = {
           local_files_only: true,
-          progress_callback,
+          progress_callback: progressCallback,
           // Use the exact configuration from GitHub issue (fp16_supported=false)
           dtype: {
-            prepare_inputs_embeds: "q4",
-            language_model: "q4f16",
-            lm_head: "fp16",
-            gen_head: "fp16",
-            gen_img_embeds: "fp16",
-            image_decode: "fp32",
+            prepare_inputs_embeds: 'q4',
+            language_model: 'q4f16',
+            lm_head: 'fp16',
+            gen_head: 'fp16',
+            gen_img_embeds: 'fp16',
+            image_decode: 'fp32',
           },
           // dtype: {
-          //   prepare_inputs_embeds: "fp32",
-          //   language_model: "q4",
-          //   lm_head: "fp32",
-          //   gen_head: "fp32",
-          //   gen_img_embeds: "fp32",
-          //   image_decode: "fp32",
+          //   prepare_inputs_embeds: 'fp32',
+          //   language_model: 'q4',
+          //   lm_head: 'fp32',
+          //   gen_head: 'fp32',
+          //   gen_img_embeds: 'fp32',
+          //   image_decode: 'fp32',
           // },
           // Mixed device configuration - keep problematic ops on WASM
           device: this.device === 'webgpu' ? {
-            prepare_inputs_embeds: "wasm", // Keep on WASM to avoid WebGPU JSEP issues
-            language_model: "webgpu",
-            lm_head: "webgpu",
-            gen_head: "webgpu",
-            gen_img_embeds: "webgpu",
-            image_decode: "webgpu",
+            prepare_inputs_embeds: 'wasm', // Keep on WASM to avoid WebGPU JSEP issues
+            language_model: 'webgpu',
+            lm_head: 'webgpu',
+            gen_head: 'webgpu',
+            gen_img_embeds: 'webgpu',
+            image_decode: 'webgpu',
           } : this.device,
         };
 
         console.log('Loading model with configuration:', {
           device: this.device,
           dtype: modelConfig.dtype,
-          deviceConfig: modelConfig.device
+          deviceConfig: modelConfig.device,
         });
 
         this.chatModel = await MultiModalityCausalLM.from_pretrained(this.model, modelConfig);
@@ -123,7 +122,7 @@ class ChatPipelineSingleton {
 
         // Check if it's a memory error
         if (modelError?.message?.includes('memory') || modelError?.message?.includes('allocation')) {
-          throw new Error(`Model loading failed: Out of memory - model too large for browser`);
+          throw new Error('Model loading failed: Out of memory - model too large for browser');
         }
 
         throw new Error(`Model loading failed: ${modelError?.message || modelError?.toString() || modelError || 'Unknown model error'}`);
@@ -197,18 +196,18 @@ self.addEventListener('message', async (event) => {
       console.log('Processing conversation with processor...');
 
       // Convert image objects to URLs for the processor
-      const processedConversation = conversation.map(msg => {
+      const processedConversation = conversation.map((msg) => {
         if (msg.images && Array.isArray(msg.images)) {
           return {
             ...msg,
-            images: msg.images.map(img => {
+            images: msg.images.map((img) => {
               // If it's an object with a url property, extract the URL
               if (typeof img === 'object' && img.url) {
                 return img.url;
               }
               // If it's already a string URL, use it as is
               return img;
-            })
+            }),
           };
         }
         return msg;
@@ -229,7 +228,7 @@ self.addEventListener('message', async (event) => {
       // Decode the response
       const new_tokens = outputs.slice(null, [inputs.input_ids.dims.at(-1), null]);
       const decoded = chatModel.processor.batch_decode(new_tokens, {
-        skip_special_tokens: true
+        skip_special_tokens: true,
       });
 
       // Calculate tokens per second

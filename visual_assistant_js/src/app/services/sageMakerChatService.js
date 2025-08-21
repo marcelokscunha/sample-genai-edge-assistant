@@ -42,8 +42,8 @@ export class SageMakerChatService extends IChatService {
     }
 
     const payload = {
-      task: "chat",
-      payload: { content }
+      task: 'chat',
+      payload: { content },
     };
     const body = JSON.stringify(payload);
 
@@ -102,14 +102,14 @@ export class SageMakerChatService extends IChatService {
         id: `response-${Date.now()}`,
         type: 'assistant',
         content: {
-          text: generatedText
+          text: generatedText,
         },
         timestamp: new Date(),
         status: 'sent',
         metadata: {
           model: 'gemma3n',
           processingTime: 0,
-        }
+        },
       };
     } catch (error) {
       const sanitizedMessage = this.sanitizeError(error);
@@ -147,14 +147,14 @@ export class SageMakerChatService extends IChatService {
       id: `response-${Date.now()}`,
       type: 'assistant',
       content: {
-        text: fullText || 'No response generated'
+        text: fullText || 'No response generated',
       },
       timestamp: new Date(),
       status: 'sent',
       metadata: {
         model: 'gemma3n-streaming',
         processingTime: 0,
-      }
+      },
     };
   }
 
