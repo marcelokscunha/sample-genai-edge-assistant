@@ -45,6 +45,8 @@ export function useSpeechRecognition() {
         const command =
           event.results[event.results.length - 1][0].transcript.toLowerCase();
 
+        console.log(`Voice command received: "${command}"`);
+
         let newMode = null;
         let modeText = '';
 
@@ -78,6 +80,13 @@ export function useSpeechRecognition() {
 
           const utterance = new SpeechSynthesisUtterance(
             `Switched to ${modeText}`,
+          );
+          utterance.lang = 'en-US';
+          window.speechSynthesis.speak(utterance);
+        } else if (newMode && newMode === currentModeRef.current) {
+          console.log(`Voice command: "${command}" but already in ${newMode} mode`);
+          const utterance = new SpeechSynthesisUtterance(
+            `Already in ${modeText}`,
           );
           utterance.lang = 'en-US';
           window.speechSynthesis.speak(utterance);
@@ -135,8 +144,12 @@ export function useSpeechRecognition() {
         recognition.current.start();
         setIsListening(true);
         const modeText = `${currentMode} mode`;
+        const allModes = ['playground', 'navigation', 'chat'];
+        const otherModes = allModes.filter(mode => mode !== currentMode);
+        const suggestions = otherModes.map(mode => `"switch to ${mode}"`).join(', ');
+
         const initialUtterance = new SpeechSynthesisUtterance(
-          `Voice control enabled. Currently in ${modeText}. Try saying "switch to navigation" or "switch mode".`,
+          `Voice control enabled. Currently in ${modeText}. Try saying ${suggestions}, or just "switch mode".`,
         );
         initialUtterance.lang = 'en-US';
         window.speechSynthesis.speak(initialUtterance);
