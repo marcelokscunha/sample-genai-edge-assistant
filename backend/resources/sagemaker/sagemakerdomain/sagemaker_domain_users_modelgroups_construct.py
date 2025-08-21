@@ -283,3 +283,45 @@ class SagemakerDomainUsersModelGroupsConstruct(Construct):
             value=self.object_detection_model_package_group.model_package_group_name,
             export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
         )
+
+        # Gemma3n Foundation Model
+        self.gemma3n_model_package_group = sagemaker.CfnModelPackageGroup(
+            self,
+            "Gemma3nModelPackageGroup",
+            model_package_group_name=shared_variables.CDK_OUT_KEY_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
+            model_package_group_description="Package group for Gemma3n foundation model supporting navigation and chat use cases.",
+            tags=[
+                CfnTag(
+                    key="sagemaker:domain-arn",
+                    value=self.sagemaker_domain.attr_domain_arn,
+                )
+            ],
+        )
+
+        CfnOutput(
+            self,
+            shared_variables.CDK_OUT_KEY_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
+            value=self.gemma3n_model_package_group.model_package_group_name,
+            export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
+        )
+
+        # Chat Model (Janus)
+        self.chat_model_package_group = sagemaker.CfnModelPackageGroup(
+            self,
+            "ChatModelPackageGroup",
+            model_package_group_name=shared_variables.CDK_OUT_KEY_SAGEMAKER_CHAT_MODEL_PACKAGE_GROUP_NAME,
+            model_package_group_description="Package group for chat models (Janus) for visual assistant.",
+            tags=[
+                CfnTag(
+                    key="sagemaker:domain-arn",
+                    value=self.sagemaker_domain.attr_domain_arn,
+                )
+            ],
+        )
+
+        CfnOutput(
+            self,
+            shared_variables.CDK_OUT_KEY_SAGEMAKER_CHAT_MODEL_PACKAGE_GROUP_NAME,
+            value=self.chat_model_package_group.model_package_group_name,
+            export_name=shared_variables.CDK_OUT_EXPORT_SAGEMAKER_CHAT_MODEL_PACKAGE_GROUP_NAME,
+        )

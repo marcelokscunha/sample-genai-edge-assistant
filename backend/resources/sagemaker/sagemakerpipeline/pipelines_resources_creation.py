@@ -9,6 +9,8 @@ from sagemaker.workflow.pipeline_context import PipelineSession
 import shared_variables as shared_variables
 from pipelines.generic_download_pack_pipeline_definition import \
     GenericDownloadAndPackPipeline
+from pipelines.gemma3n_pipeline_definition import \
+    Gemma3nModelTrainingPipeline, Gemma3nModelDeploymentPipeline
 
 # ANSI escape code for green text
 GREEN = "\033[92m"
@@ -62,6 +64,14 @@ SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME = get_output_value(
     outputs,
     shared_variables.CDK_OUT_EXPORT_SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
 )
+SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME = get_output_value(
+    outputs,
+    shared_variables.CDK_OUT_EXPORT_SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
+)
+SAGEMAKER_CHAT_MODEL_PACKAGE_GROUP_NAME = get_output_value(
+    outputs,
+    shared_variables.CDK_OUT_EXPORT_SAGEMAKER_CHAT_MODEL_PACKAGE_GROUP_NAME,
+)
 USER_SAGEMAKER_TEAM = get_output_value(
     outputs, shared_variables.CDK_OUT_EXPORT_USER_SAGEMAKER_TEAM
 )
@@ -74,6 +84,15 @@ SAGEMAKER_DOMAIN_ARN = get_output_value(
 EXECUTION_ROLE = get_output_value(
     outputs, shared_variables.CDK_OUT_EXPORT_SAGEMAKER_EXECUTION_ROLE_ARN
 )
+LAMBDA_EXECUTION_ROLE = get_output_value(
+    outputs, shared_variables.CDK_OUT_EXPORT_SAGEMAKER_PIPELINE_LAMBDA_ROLE_ARN
+)
+HF_TOKEN_SECRET_NAME = get_output_value(
+    outputs, shared_variables.CDK_OUT_EXPORT_DEFAULT_HF_TOKEN_SECRET_NAME
+)
+
+# Add tags for all pipelines allowing only created Domain to visualize them
+domain_tag = {"Key": "sagemaker:domain-arn", "Value": SAGEMAKER_DOMAIN_ARN}
 
 print("\n\n")
 print("#########################")
@@ -87,7 +106,11 @@ print(SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME)
 print(SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME)
+print(SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME)
+print(SAGEMAKER_CHAT_MODEL_PACKAGE_GROUP_NAME)
 print(EXECUTION_ROLE)
+print(LAMBDA_EXECUTION_ROLE)
+print(HF_TOKEN_SECRET_NAME)
 print("********\n\n")
 
 
@@ -106,8 +129,6 @@ pipeline_session = PipelineSession(boto_session=boto_session, sagemaker_client=s
 ##### PIPELINE DEFINITIONS ######
 #################################
 
-domain_tag = {"Key": "sagemaker:domain-arn", "Value": SAGEMAKER_DOMAIN_ARN}
-
 # Deploy the depth model pipeline
 depth_pipeline = GenericDownloadAndPackPipeline(
     pipeline_name=shared_variables.BOTO3_DEPTH_PIPELINE_NAME,
@@ -118,7 +139,7 @@ depth_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_DEPTH_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/depth/script/depth_script.py",
     script_name="depth_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -150,7 +171,7 @@ image_captioning_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_IMAGE_CAPTIONING_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/image_captioning/script/ic_script.py",
     script_name="ic_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -184,7 +205,7 @@ object_detection_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_OBJECT_DETECTION_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/object_detection/script/od_script.py",
     script_name="od_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -219,7 +240,7 @@ tts_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_TTS_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/tts/script/tts_script.py",
     script_name="tts_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -250,7 +271,7 @@ vocoder_pipeline = GenericDownloadAndPackPipeline(
     package_group_name_p=SAGEMAKER_VOCODER_MODEL_PACKAGE_GROUP_NAME,
     execution_role=EXECUTION_ROLE,
     region=REGION,
-    script_path="./resources/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/vocoder/script/vocoder_script.py",
     script_name="vocoder_script.py",
     sagemaker_session=sagemaker_session,
 ).get_pipeline()
@@ -270,5 +291,90 @@ if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
         pipeline_execution = vocoder_pipeline.start()
     print(
         f"{GREEN}Vocoder pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+    )
+print("\n\n")
+
+# Deploy the chat model pipeline
+chat_pipeline = GenericDownloadAndPackPipeline(
+    pipeline_name=shared_variables.BOTO3_CHAT_PIPELINE_NAME,
+    input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
+    output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+    prefix_bucket_path="chat",
+    pipeline_session=pipeline_session,
+    package_group_name_p=SAGEMAKER_CHAT_MODEL_PACKAGE_GROUP_NAME,
+    execution_role=EXECUTION_ROLE,
+    region=REGION,
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/chat/script/chat_script.py",
+    script_name="chat_script.py",
+    sagemaker_session=sagemaker_session,
+).get_pipeline()
+
+pipeline_response = chat_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+chat_pipeline_arn = pipeline_response["PipelineArn"]
+print(
+    f"{GREEN}Chat pipeline created or updated with ARN: {chat_pipeline_arn}{RESET}"
+)
+
+if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+    if os.getenv("AUTO_APPROVE_MODELS", "false").lower() == "true":
+        pipeline_execution = chat_pipeline.start({"DefaultApprovalStatus": "Approved"})
+    else:
+        pipeline_execution = chat_pipeline.start()
+    print(
+        f"{GREEN}Chat pipeline triggered (execution: {pipeline_execution.arn} (AUTO_APPROVE_MODELS={os.getenv('AUTO_APPROVE_MODELS', 'false').lower()}){RESET}"
+    )
+print("\n\n")
+
+# Deploy the Gemma3n model deployment pipeline FIRST
+# This ensures the deployment pipeline exists when the preparation pipeline approves models
+# This pipeline is triggered by EventBridge when Gemma3n models are approved, not manually
+gemma3n_deployment_pipeline = Gemma3nModelDeploymentPipeline(
+    pipeline_name=shared_variables.BOTO3_GEMMA3N_DEPLOYMENT_PIPELINE_NAME,
+    output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+    prefix_bucket_path="gemma3n",
+    pipeline_session=pipeline_session,
+    execution_role=EXECUTION_ROLE,
+    lambda_execution_role=LAMBDA_EXECUTION_ROLE,
+    region=REGION,
+    sagemaker_session=sagemaker_session,
+    default_endpoint_name=shared_variables.GEMMA3N_ENDPOINT_NAME
+).get_pipeline()
+
+pipeline_response = gemma3n_deployment_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+gemma3n_deployment_pipeline_arn = pipeline_response["PipelineArn"]
+
+print(
+    f"{GREEN}Gemma3n deployment pipeline created or updated with ARN: {gemma3n_deployment_pipeline_arn}{RESET}"
+)
+# Note: Deployment pipeline is NOT triggered manually - it's triggered automatically by EventBridge when Gemma3n models are approved in the Model Registry
+print(f"{GREEN}Gemma3n deployment pipeline will be triggered automatically by EventBridge when Gemma3n models are approved{RESET}")
+print("\n\n")
+
+# Deploy the Gemma3n model preparation pipeline
+gemma3n_preparation_pipeline = Gemma3nModelTrainingPipeline(
+    pipeline_name=shared_variables.BOTO3_GEMMA3N_PREPARATION_PIPELINE_NAME,
+    input_bucket_name=S3_BUCKET_SAGEMAKER_INPUT_NAME,
+    output_bucket_name=S3_BUCKET_SAGEMAKER_OUTPUT_NAME,
+    prefix_bucket_path="gemma3n",
+    pipeline_session=pipeline_session,
+    package_group_name_p=SAGEMAKER_GEMMA3N_MODEL_PACKAGE_GROUP_NAME,
+    execution_role=EXECUTION_ROLE,
+    lambda_execution_role=LAMBDA_EXECUTION_ROLE,
+    region=REGION,
+    script_path=f"{shared_variables.BACKEND_DIR}/resources/sagemaker/sagemakerpipeline/pipelines/gemma3n/script/src",
+    sagemaker_session=sagemaker_session,
+    default_hf_token_secret_name=HF_TOKEN_SECRET_NAME
+).get_pipeline()
+
+pipeline_response = gemma3n_preparation_pipeline.upsert(role_arn=EXECUTION_ROLE, tags=[domain_tag])
+gemma3n_preparation_pipeline_arn = pipeline_response["PipelineArn"]
+
+print(
+    f"{GREEN}Gemma3n preparation pipeline created or updated with ARN: {gemma3n_preparation_pipeline_arn}{RESET}"
+)
+
+if os.getenv("TRIGGER_PIPELINES", "false").lower() == "true":
+    print(
+        f"{GREEN}Gemma3n training pipeline must be triggered manually (to avoid higher costs and ensure correct secrets usage)!"
     )
 print("\n\n")

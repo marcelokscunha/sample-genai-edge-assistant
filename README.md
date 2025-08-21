@@ -19,6 +19,9 @@ To deploy it, there are only 4 steps:
         - TRIGGER_PIPELINES=true   # if false, you must manually trigger the SageMaker Pipelines in SageMaker Studio
         - AUTO_APPROVE_MODELS=true  # if TRIGGER_PIPELINES=false or AUTO_APPROVE_MODELS=false, you must manually approve the models in SageMaker Studio
 4. Create a user in Cognito User Pool for yourself.
+5. (Optional) If you want to use the Navigation model, you must manually approve it in SageMaker Studio by going to the navigation training pipeline and starting it.
+    - If you are triggering for the first time, you must first configure the HuggingFace secret. Look at the models used for navigation (e.g. Gemma3n), accept the terms in HuggingFace platform and create a token if you still don't have one. Go to Secrets Manager, select the HuggingFace secret, click on "Edit", put your token there and save it (this is needed just in the first time).
+    - After the secret is configured, go to SageMaker Studio, select the nagation model training pipeline, and start it ( the defaults input values should work).
 
 Enjoy!
 
