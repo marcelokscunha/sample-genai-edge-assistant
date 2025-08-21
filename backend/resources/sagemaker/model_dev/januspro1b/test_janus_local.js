@@ -6,7 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // First download artifacts to ARTIFACTS dir in janus-pro-1b dir: hf download onnx-community/Janus-Pro-1B-ONNX --local-dir ARTIFACTS
-// Then move the necessary files for the desired quantization: e.g. cp ARTIFACTS/onnx/*uint8.onnx ARTIFACTS_UINT8/onnx/
+// Then move the necessary files for the desired quantization (look at the sample-genai-edge-assistant/backend/resources/sagemaker/sagemakerpipeline/pipelines/chat/script/chat_script.py): 
+// e.g. cp ARTIFACTS/onnx/prepare_inputs_embeds_q4.onnx ARTIFACTS_UINT8/onnx/
 
 async function testJanusLocal() {
     try {
@@ -29,11 +30,11 @@ async function testJanusLocal() {
             local_files_only: true,
             // Use the exact configuration from GitHub issue (fp16_supported=false)
             dtype: {
-                prepare_inputs_embeds: "fp32",
-                language_model: "q4",
-                lm_head: "fp32",
-                gen_head: "fp32",
-                gen_img_embeds: "fp32",
+                prepare_inputs_embeds: "q4",
+                language_model: "q4f16",
+                lm_head: "fp16",
+                gen_head: "fp16",
+                gen_img_embeds: "fp16",
                 image_decode: "fp32",
             },
             // Use CPU for Node.js testing (browser will use WebGPU/WASM mix)
