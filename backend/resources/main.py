@@ -121,8 +121,8 @@ class MyStack(Stack):
             base_origins = (
                 [
                     f"https://main.{amplify_app_id}.amplifyapp.com",
-                    f"https://feature-simplify-deployment.{amplify_app_id}.amplifyapp.com",
-                    "http://localhost:3000",
+                    f"https://feature-chat-mode-implementation.{amplify_app_id}.amplifyapp.com",
+                    # "http://localhost:3000",
                 ]
                 if amplify_install
                 else CUSTOM_ALLOWED_RESOURCES
