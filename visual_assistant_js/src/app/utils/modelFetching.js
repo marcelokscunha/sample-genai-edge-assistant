@@ -154,7 +154,7 @@ async function cacheModel(modelKey, data, ETag) {
       const handler = FILE_TYPE_HANDLERS[extensionName];
 
       if (!handler) {
-        console.error(`Unknown file type: ${extensionName}`);
+        console.warn(`Unknown file type: ${extensionName}`);
         continue;
       }
 
